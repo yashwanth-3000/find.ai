@@ -156,10 +156,10 @@ function ApplicantDetails({ profileData }: { profileData?: ApplicantProfile }) {
   return (
     <div className="space-y-4">
       {/* Bio */}
-      {profileData.bio && (
-        <div>
-          <div className="text-sm font-medium text-muted-foreground mb-1">Bio</div>
-          <p className="text-sm whitespace-pre-wrap">{profileData.bio}</p>
+      {profileData.about && (
+        <div className="mb-6">
+          <div className="text-sm font-medium text-muted-foreground mb-1">About</div>
+          <p className="text-sm whitespace-pre-wrap">{profileData.about}</p>
         </div>
       )}
 
@@ -178,18 +178,103 @@ function ApplicantDetails({ profileData }: { profileData?: ApplicantProfile }) {
       )}
 
       {/* Education */}
-      {profileData.education && (
+      {profileData.education && Array.isArray(profileData.education) && profileData.education.length > 0 && (
         <div>
           <div className="text-sm font-medium text-muted-foreground mb-1">Education</div>
-          <p className="text-sm">{profileData.education}</p>
+          <div className="space-y-2">
+            {profileData.education.map((edu: any, index: number) => (
+              <div key={index} className="text-sm">
+                <div className="font-medium">{edu.school}</div>
+                <div>{edu.degree} in {edu.field}</div>
+                <div className="text-muted-foreground text-xs">
+                  {edu.start_date} - {edu.end_date || 'Present'}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {/* Experience */}
+      {profileData.experience && Array.isArray(profileData.experience) && profileData.experience.length > 0 && (
+        <div className="mt-4">
+          <div className="text-sm font-medium text-muted-foreground mb-1">Experience</div>
+          <div className="space-y-3">
+            {profileData.experience.map((exp: any, index: number) => (
+              <div key={index} className="text-sm">
+                <div className="font-medium">{exp.company}</div>
+                <div>{exp.position}</div>
+                <div className="text-muted-foreground text-xs">
+                  {exp.start_date} - {exp.end_date || 'Present'}
+                </div>
+                {exp.description && (
+                  <div className="mt-1 text-xs">{exp.description}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Experience Years */}
       {profileData.experience_years !== null && (
         <div>
           <div className="text-sm font-medium text-muted-foreground mb-1">Experience</div>
-          <p className="text-sm">{profileData.experience_years} {profileData.experience_years === 1 ? 'year' : 'years'}</p>
+          <p className="text-sm">{profileData.experience_years} {profileData.experience_years === 1 ? 'year' : 'years'} of professional experience</p>
+        </div>
+      )}
+
+      {/* Certifications */}
+      {profileData.certifications && Array.isArray(profileData.certifications) && profileData.certifications.length > 0 && (
+        <div className="mt-4">
+          <div className="text-sm font-medium text-muted-foreground mb-1">Certifications</div>
+          <div className="space-y-2">
+            {profileData.certifications.map((cert: any, index: number) => (
+              <div key={index} className="text-sm">
+                <div className="font-medium">{cert.name}</div>
+                <div className="text-xs">Issued by {cert.issuer} • {cert.date}</div>
+                {cert.description && (
+                  <div className="mt-1 text-xs">{cert.description}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Projects */}
+      {profileData.projects && Array.isArray(profileData.projects) && profileData.projects.length > 0 && (
+        <div className="mt-4">
+          <div className="text-sm font-medium text-muted-foreground mb-1">Projects</div>
+          <div className="space-y-3">
+            {profileData.projects.map((project: any, index: number) => (
+              <div key={index} className="text-sm">
+                <div className="font-medium">{project.name}</div>
+                {project.description && (
+                  <div className="mt-1 text-xs">{project.description}</div>
+                )}
+                {project.technologies && project.technologies.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {project.technologies.map((tech: string, techIndex: number) => (
+                      <span key={techIndex} className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {project.url && (
+                  <a 
+                    href={project.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline inline-flex items-center mt-1"
+                  >
+                    View Project <LuExternalLink className="ml-1 h-3 w-3" />
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

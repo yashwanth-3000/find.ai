@@ -2,6 +2,8 @@ import { Metadata } from 'next'
 import { Navbar } from '@/components/navbar'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase'
+import ProfileEditor from '@/components/profile/profile-editor'
+import { PageContainer } from '@/components/layout/page-container'
 
 export const metadata: Metadata = {
   title: 'Edit Applicant Profile',
@@ -31,20 +33,12 @@ export default async function ApplicantProfileEditPage() {
   }
   
   return (
-    <div className="flex min-h-screen flex-col">
+    <>
       <Navbar />
-      <main className="flex-1 pt-20">
-        <div className="container py-12">
-          <h1 className="text-3xl font-bold mb-8">Edit Your Profile</h1>
-          
-          <div className="bg-white rounded-lg border shadow-sm p-6">
-            <p className="text-center text-gray-500 py-10">
-              Profile edit form will be implemented here. <br />
-              Coming soon!
-            </p>
-          </div>
-        </div>
-      </main>
-    </div>
+      <PageContainer>
+        <h1 className="text-3xl font-bold mb-8">Edit Your Applicant Profile</h1>
+        <ProfileEditor />
+      </PageContainer>
+    </>
   )
 } 

@@ -1,21 +1,70 @@
-import { Metadata } from 'next'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { Navbar } from '@/components/navbar'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import RoleGuard from '@/components/auth/role-guard'
+import { useAuth } from '@/contexts/auth-context'
 import Link from 'next/link'
-import { LuPlus, LuPenLine, LuEye, LuUsers } from 'react-icons/lu'
+import { LuPlus, LuPenLine, LuEye, LuUsers, LuLoader } from 'react-icons/lu'
 import { Container } from '@/components/layout/container'
 import { PageContainer } from '@/components/layout/page-container'
-
-export const metadata: Metadata = {
-  title: 'Manage Jobs | findr.ai',
-  description: 'Manage your company job listings',
-}
+import { formatDistance } from 'date-fns'
 
 export default function ManageJobsPage() {
+  const { user, supabase } = useAuth()
+  const [jobs, setJobs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('active')
+  
+  // Fetch jobs from the database
+  useEffect(() => {
+    const fetchJobs = async () => {
+      if (!user) return
+      
+      try {
+        setLoading(true)
+        
+        const { data, error } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('company_id', user.id)
+          .order('created_at', { ascending: false })
+        
+        if (error) throw error
+        
+        setJobs(data || [])
+      } catch (error) {
+        console.error('Error fetching jobs:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchJobs()
+  }, [user, supabase])
+  
+  // Filter jobs by status
+  const filteredJobs = jobs.filter(job => job.status === activeTab)
+  
+  // Get applicant count for a job (would be implemented with real data)
+  const getApplicantCount = (jobId: string) => {
+    // In a real app, this would fetch the actual count from the database
+    return Math.floor(Math.random() * 20) // Placeholder for demo
+  }
+  
+  // Format posted date
+  const formatPostedDate = (date: string) => {
+    try {
+      return formatDistance(new Date(date), new Date(), { addSuffix: true })
+    } catch (e) {
+      return 'Unknown date'
+    }
+  }
+
   return (
     <>
       <Navbar />
@@ -30,63 +79,96 @@ export default function ManageJobsPage() {
             </Button>
           </div>
           
-          <div className="mb-8 bg-muted/30 p-4 rounded-lg border">
-            <p className="text-muted-foreground">
-              This is a demo page showing your company's job listings. In a real application, this would display actual job listings from our database that your company has posted.
-            </p>
-          </div>
-          
-          <Tabs defaultValue="active" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-8">
-              <TabsTrigger value="active">Active</TabsTrigger>
-              <TabsTrigger value="draft">Draft</TabsTrigger>
-              <TabsTrigger value="closed">Closed</TabsTrigger>
-            </TabsList>
-            <TabsContent value="active">
-              <div className="grid gap-6">
-                <JobCard 
-                  id="job-1"
-                  title="Senior Frontend Developer"
-                  location="Remote"
-                  posted="2 days ago"
-                  applicants={12}
-                  status="active"
-                />
-                <JobCard 
-                  id="job-2"
-                  title="Full Stack Engineer"
-                  location="San Francisco, CA (Hybrid)"
-                  posted="1 week ago"
-                  applicants={8}
-                  status="active"
-                />
-              </div>
-            </TabsContent>
-            <TabsContent value="draft">
-              <div className="grid gap-6">
-                <JobCard 
-                  id="draft-1"
-                  title="Product Manager"
-                  location="New York, NY"
-                  posted="Draft"
-                  applicants={0}
-                  status="draft"
-                />
-              </div>
-            </TabsContent>
-            <TabsContent value="closed">
-              <div className="grid gap-6">
-                <JobCard 
-                  id="closed-1"
-                  title="UX Designer"
-                  location="Remote"
-                  posted="Closed 2 weeks ago"
-                  applicants={16}
-                  status="closed"
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
+          {loading ? (
+            <div className="flex flex-col justify-center items-center p-12 gap-4">
+              <LuLoader className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground text-sm">Loading... If not loaded in 3 seconds, please refresh the page</p>
+            </div>
+          ) : jobs.length === 0 ? (
+            <Card className="p-8 text-center">
+              <h3 className="text-xl font-medium mb-2">No Jobs Posted Yet</h3>
+              <p className="text-muted-foreground mb-6">Start posting jobs to attract qualified applicants for your company.</p>
+              <Button asChild>
+                <Link href="/company/jobs/new">
+                  <LuPlus className="mr-2 h-4 w-4" /> Post Your First Job
+                </Link>
+              </Button>
+            </Card>
+          ) : (
+            <Tabs defaultValue="active" className="w-full" onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-3 mb-8">
+                <TabsTrigger value="active">Active</TabsTrigger>
+                <TabsTrigger value="draft">Draft</TabsTrigger>
+                <TabsTrigger value="closed">Closed</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="active">
+                {filteredJobs.length === 0 ? (
+                  <div className="text-center p-12 border rounded-md bg-muted/20">
+                    <p className="text-muted-foreground">No active jobs found. Activate your draft jobs or post a new job.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-6">
+                    {filteredJobs.map((job) => (
+                      <JobCard 
+                        key={job.id}
+                        id={job.id}
+                        title={job.title}
+                        location={job.location}
+                        posted={formatPostedDate(job.created_at)}
+                        applicants={getApplicantCount(job.id)}
+                        status="active"
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="draft">
+                {filteredJobs.length === 0 ? (
+                  <div className="text-center p-12 border rounded-md bg-muted/20">
+                    <p className="text-muted-foreground">No draft jobs found. Save a job as draft when creating a new job.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-6">
+                    {filteredJobs.map((job) => (
+                      <JobCard 
+                        key={job.id}
+                        id={job.id}
+                        title={job.title}
+                        location={job.location}
+                        posted="Draft"
+                        applicants={0}
+                        status="draft"
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="closed">
+                {filteredJobs.length === 0 ? (
+                  <div className="text-center p-12 border rounded-md bg-muted/20">
+                    <p className="text-muted-foreground">No closed jobs found. You can close active jobs when they're no longer accepting applications.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-6">
+                    {filteredJobs.map((job) => (
+                      <JobCard 
+                        key={job.id}
+                        id={job.id}
+                        title={job.title}
+                        location={job.location}
+                        posted={`Closed ${formatPostedDate(job.updated_at)}`}
+                        applicants={getApplicantCount(job.id)}
+                        status="closed"
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          )}
         </RoleGuard>
       </PageContainer>
     </>

@@ -106,10 +106,10 @@ function getRoleContent(profile: UserProfileType) {
       <div className="space-y-3">
         <h3 className="font-medium text-sm">Applicant Profile</h3>
         
-        {applicantData.bio && (
-          <div>
-            <div className="text-xs text-gray-500">Bio</div>
-            <p className="text-sm">{applicantData.bio}</p>
+        {applicantData.about && (
+          <div className="mt-4">
+            <div className="text-xs text-gray-500">About</div>
+            <p className="text-sm">{applicantData.about}</p>
           </div>
         )}
         
@@ -127,7 +127,7 @@ function getRoleContent(profile: UserProfileType) {
         )}
         
         <Button variant="link" asChild className="p-0 h-auto">
-          <a href="/applicant/profile/edit">Edit Profile</a>
+          <a href="/edit-profile/applicant">Edit Profile</a>
         </Button>
       </div>
     )
@@ -162,7 +162,7 @@ function getRoleContent(profile: UserProfileType) {
         )}
         
         <Button variant="link" asChild className="p-0 h-auto">
-          <a href="/company/profile/edit">Edit Profile</a>
+          <a href="/edit-profile/company">Edit Profile</a>
         </Button>
       </div>
     )

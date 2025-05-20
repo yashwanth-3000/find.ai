@@ -5,6 +5,7 @@ export async function GET(req: NextRequest) {
   const requestUrl = new URL(req.url)
   const code = requestUrl.searchParams.get('code')
   const error = requestUrl.searchParams.get('error')
+  const errorDescription = requestUrl.searchParams.get('error_description')
   // Default redirect to role-selector to ensure new users choose a role
   const next = requestUrl.searchParams.get('next') || '/role-selector'
   
@@ -16,9 +17,17 @@ export async function GET(req: NextRequest) {
     searchParams: Object.fromEntries(requestUrl.searchParams.entries())
   })
 
+  // Handle explicit errors from OAuth provider
+  if (error) {
+    console.error('OAuth provider returned error:', error, errorDescription)
+    return NextResponse.redirect(
+      new URL(`/signin?error=${encodeURIComponent(errorDescription || error)}`, requestUrl.origin)
+    )
+  }
+
   // Check for URL fragment with access_token (implicit flow)
   // This happens when the OAuth provider returns token directly in URL fragment
-  if (req.url.includes('#') || req.url.includes('access_token=') || req.url.includes('error=')) {
+  if (req.url.includes('#') || req.url.includes('access_token=')) {
     console.log('Detected URL fragment or token parameter - handling in client-side component')
     
     // We need to redirect to a client-side page that can handle the fragment
@@ -40,7 +49,7 @@ export async function GET(req: NextRequest) {
     
     // Set a cookie indicating auth is in progress (helps middleware)
     response.cookies.set('auth_in_progress', 'true', { 
-      maxAge: 10, // Short-lived cookie (10 seconds)
+      maxAge: 30, // Extend to 30 seconds to account for possible delays
       path: '/',
       sameSite: 'lax'
     })
@@ -69,57 +78,54 @@ export async function GET(req: NextRequest) {
         // Get the user ID from the session data
         const userId = data.session?.user.id
         
-        if (userId) {
-          const { data: profileData, error: profileError } = await supabase
-            .from('user_profiles')
-            .select('role')
-            .eq('id', userId)
-            .single()
+        if (!userId) {
+          console.error('No user ID found in session data')
+          return createAuthRedirectResponse(`/signin?error=${encodeURIComponent('No user found in session')}`)
+        }
+        
+        console.log('User ID from session:', userId)
+        
+        const { data: profileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', userId)
+          .single()
+        
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError.message)
+        }
+        
+        if (profileData?.role) {
+          console.log(`User has role: ${profileData.role}, redirecting to home page`);
+          // If role exists, redirect to home page instead of dashboard
+          const homePage = '/';
           
-          if (profileData?.role) {
-            console.log(`User has role: ${profileData.role}, redirecting to home page`);
-            // If role exists, redirect to home page instead of dashboard
-            const homePage = '/';
-            
-            // Add a small delay for cookie setting
-            await new Promise(resolve => setTimeout(resolve, 500))
-            
-            return createAuthRedirectResponse(homePage)
-          } else {
-            console.log('User has no role, redirecting to role selection');
-            // No role, redirect to role selection
-            
-            // Add a small delay for cookie setting
-            await new Promise(resolve => setTimeout(resolve, 500))
-            
-            return createAuthRedirectResponse('/role-selector')
-          }
+          // Add a small delay for cookie setting
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          return createAuthRedirectResponse(homePage)
+        } else {
+          console.log('User has no role, redirecting to role selection');
+          // No role, redirect to role selection
+          
+          // Add a small delay for cookie setting
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          return createAuthRedirectResponse('/role-selector')
         }
       } catch (profileError) {
         console.error('Error checking user profile:', profileError);
-        // If there was an error, just continue with default redirection
+        // If there was an error, redirect to role selector
+        return createAuthRedirectResponse('/role-selector')
       }
-      
-      // Add a small delay for cookie setting
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Successful authentication, redirect to the intended page (role-selector by default)
-      return createAuthRedirectResponse(next)
     } catch (error: any) {
       console.error('Auth callback exception:', error.message || error)
       return createAuthRedirectResponse(`/signin?error=${encodeURIComponent(error.message || 'Authentication failed')}`)
     }
   }
 
-  // Handle errors passed in query params
-  if (error) {
-    console.error('Auth error from provider:', error)
-    return createAuthRedirectResponse(`/signin?error=${encodeURIComponent(error)}`)
-  }
-
-  // If no code is present, redirect to token handler as a fallback
-  // This might be needed if tokens are passed in other ways
-  console.log('No code found, redirecting to token handler as fallback')
+  // If we got here, we don't have a code or token - redirect to token handler as fallback
+  console.log('No code or token found, redirecting to token handler as fallback')
   return NextResponse.redirect(
     new URL('/auth/token-handler', requestUrl.origin)
   )

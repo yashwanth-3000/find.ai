@@ -287,7 +287,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       console.log('Starting Google sign-in with callback URL:', callbackUrl)
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Clear any previous auth fragments in URL
+      if (window.location.hash || window.location.search.includes('error=')) {
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
+
+      // Store timestamp to help debug auth flow
+      localStorage.setItem('auth_flow_start', new Date().toISOString())
+      
+      // Using a fresh client for this operation to avoid any state conflicts
+      const freshClient = createBrowserClient()
+      
+      const { data, error } = await freshClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: callbackUrl,
@@ -303,6 +314,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         console.error('Google sign in error:', error.message)
         setError(error.message)
         throw error
+      }
+      
+      console.log('OAuth initialization successful, redirect URL:', data?.url || 'No URL returned')
+      
+      // If a URL was returned but no redirect happened, force it
+      if (data?.url && typeof window !== 'undefined') {
+        console.log('Manually navigating to authorization URL')
+        window.location.href = data.url
       }
     } catch (err) {
       console.error('Failed to sign in with Google:', err)

@@ -29,7 +29,11 @@ export default function RoleSelector() {
 
       if (success) {
         // Redirect to the appropriate dashboard
-        router.push(selectedRole === 'applicant' ? '/applicant/dashboard' : '/company/dashboard')
+        const route = selectedRole === 'applicant' ? '/applicant/dashboard' : '/company/dashboard'
+        router.push(route)
+        setTimeout(() => {
+          window.location.reload()
+        }, 200)
       } else {
         setError('Failed to update role. Please try again.')
       }

@@ -12,39 +12,51 @@ export type Database = {
       applicant_profiles: {
         Row: {
           id: string
-          bio: string | null
+          about: string | null
           skills: string[] | null
           experience_years: number | null
-          education: string | null
+          education: Json | null
+          experience: Json | null
+          certifications: Json | null
+          projects: Json | null
           linkedin_url: string | null
           github_url: string | null
           resume_url: string | null
           created_at: string
           updated_at: string
+          linkedin_profile_raw: Json | null
         }
         Insert: {
           id: string
-          bio?: string | null
+          about?: string | null
           skills?: string[] | null
           experience_years?: number | null
-          education?: string | null
+          education?: Json | null
+          experience?: Json | null
+          certifications?: Json | null
+          projects?: Json | null
           linkedin_url?: string | null
           github_url?: string | null
           resume_url?: string | null
           created_at?: string
           updated_at?: string
+          linkedin_profile_raw?: Json | null
         }
         Update: {
           id?: string
-          bio?: string | null
+          about?: string | null
           skills?: string[] | null
           experience_years?: number | null
-          education?: string | null
+          education?: Json | null
+          experience?: Json | null
+          certifications?: Json | null
+          projects?: Json | null
           linkedin_url?: string | null
           github_url?: string | null
           resume_url?: string | null
           created_at?: string
           updated_at?: string
+          linkedin_profile_raw?: Json | null
         }
       }
       company_profiles: {

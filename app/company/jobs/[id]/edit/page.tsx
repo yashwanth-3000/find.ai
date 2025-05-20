@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
+import { useAuth } from '@/contexts/auth-context'
 import { Container } from '@/components/layout/container'
 import { PageContainer } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
@@ -13,23 +14,22 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from '@/components/ui/use-toast'
-import { useAuth } from '@/contexts/auth-context'
-import { LuSave, LuLoader, LuX } from 'react-icons/lu'
 import RoleGuard from '@/components/auth/role-guard'
+import { LuSave, LuLoader, LuX, LuChevronLeft } from 'react-icons/lu'
+import Link from 'next/link'
 
-// Metadata moved to layout file to solve 'use client' conflict
-
-export default function NewJobPage() {
+export default function EditJobPage() {
   const router = useRouter()
-  const { user, userProfile, supabase } = useAuth()
+  const params = useParams()
+  const { user, supabase } = useAuth()
+  const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const jobId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : null
   
   // Form state
   const [formData, setFormData] = useState({
@@ -47,6 +47,58 @@ export default function NewJobPage() {
     remote_option: 'hybrid',
     application_deadline: ''
   })
+  
+  // Load job data
+  useEffect(() => {
+    const fetchJobData = async () => {
+      if (!jobId || !user) return
+      
+      try {
+        setIsLoading(true)
+        
+        const { data, error } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('id', jobId)
+          .eq('company_id', user.id)
+          .single()
+        
+        if (error) throw error
+        
+        if (data) {
+          // Format the skills array back to a comma-separated string
+          const skillsString = data.skills_required ? data.skills_required.join(', ') : ''
+          
+          setFormData({
+            title: data.title || '',
+            description: data.description || '',
+            location: data.location || '',
+            job_type: data.job_type || 'full_time',
+            salary_min: data.salary_min ? data.salary_min.toString() : '',
+            salary_max: data.salary_max ? data.salary_max.toString() : '',
+            salary_currency: data.salary_currency || 'USD',
+            salary_period: data.salary_period || 'year',
+            skills_required: skillsString,
+            experience_level: data.experience_level || 'mid',
+            education_level: data.education_level || '',
+            remote_option: data.remote_option || 'hybrid',
+            application_deadline: data.application_deadline ? new Date(data.application_deadline).toISOString().split('T')[0] : ''
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching job data:', error)
+        toast({
+          title: 'Error',
+          description: 'Failed to load job data',
+          variant: 'destructive'
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchJobData()
+  }, [jobId, user, supabase])
   
   // Form input handler
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -70,8 +122,8 @@ export default function NewJobPage() {
         throw new Error('Please fill in all required fields')
       }
       
-      if (!user || !userProfile) {
-        throw new Error('You must be logged in to post a job')
+      if (!user || !jobId) {
+        throw new Error('Unable to update job')
       }
       
       // Prepare skills array from comma-separated string
@@ -80,11 +132,10 @@ export default function NewJobPage() {
         .map(skill => skill.trim())
         .filter(skill => skill !== '')
       
-      // Create job post
-      const { data, error } = await supabase
+      // Update job
+      const { error } = await supabase
         .from('jobs')
-        .insert({
-          company_id: user.id,
+        .update({
           title: formData.title,
           description: formData.description,
           location: formData.location,
@@ -98,27 +149,26 @@ export default function NewJobPage() {
           education_level: formData.education_level || null,
           remote_option: formData.remote_option,
           application_deadline: formData.application_deadline || null,
-          status: 'active',
-          created_at: new Date().toISOString()
+          updated_at: new Date().toISOString()
         })
-        .select()
+        .eq('id', jobId)
+        .eq('company_id', user.id)
       
       if (error) throw error
       
       toast({
         title: 'Success',
-        description: 'Your job has been posted successfully',
-        variant: 'success'
+        description: 'Job updated successfully'
       })
       
-      // Redirect to jobs page
-      router.push('/company/jobs')
+      // Redirect to job details page
+      router.push(`/company/jobs/${jobId}`)
       
     } catch (error) {
-      console.error('Error posting job:', error)
+      console.error('Error updating job:', error)
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to post job',
+        description: error instanceof Error ? error.message : 'Failed to update job',
         variant: 'destructive'
       })
     } finally {
@@ -126,6 +176,20 @@ export default function NewJobPage() {
     }
   }
   
+  if (isLoading) {
+    return (
+      <>
+        <Navbar />
+        <PageContainer>
+          <div className="flex flex-col justify-center items-center p-20 gap-4">
+            <LuLoader className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground text-sm">Loading... If not loaded in 3 seconds, please refresh the page</p>
+          </div>
+        </PageContainer>
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
@@ -133,8 +197,18 @@ export default function NewJobPage() {
         <RoleGuard allowedRoles={['company']}>
           <Container className="max-w-3xl">
             <div className="mb-6">
-              <h1 className="text-3xl font-bold">Post a New Job</h1>
-              <p className="text-muted-foreground">Create a new job listing for your company</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                asChild 
+                className="mb-2"
+              >
+                <Link href={`/company/jobs/${jobId}`}>
+                  <LuChevronLeft className="mr-1 h-4 w-4" /> Back to Job
+                </Link>
+              </Button>
+              <h1 className="text-3xl font-bold">Edit Job</h1>
+              <p className="text-muted-foreground">Update your job listing</p>
             </div>
             
             <Card>
@@ -357,12 +431,12 @@ export default function NewJobPage() {
                   {isSubmitting ? (
                     <>
                       <LuLoader className="mr-2 h-4 w-4 animate-spin" />
-                      Posting...
+                      Saving...
                     </>
                   ) : (
                     <>
                       <LuSave className="mr-2 h-4 w-4" />
-                      Post Job
+                      Save Changes
                     </>
                   )}
                 </Button>

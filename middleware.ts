@@ -46,6 +46,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/', requestUrl.origin))
     }
     
+    // Always allow access to signin page when not authenticated
+    if (isAuthRoute && !session) {
+      return NextResponse.next()
+    }
+    
     // Allow the request to continue for all routes
     return NextResponse.next()
   } catch (error) {

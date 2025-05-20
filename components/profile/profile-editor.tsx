@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,21 +25,37 @@ export default function ProfileEditor() {
   // Basic profile form state
   const [displayName, setDisplayName] = useState<string>('')
   const [avatarUrl, setAvatarUrl] = useState<string>('')
+  const [isInitialized, setIsInitialized] = useState(false)
 
-  // Fetch user data if not available
-  useEffect(() => {
+  // Fetch user data if not available - using useCallback to avoid dependency issues
+  const initializeSession = useCallback(async () => {
     if (!userProfile && !loading) {
-      refreshSession()
+      await refreshSession()
     }
   }, [userProfile, loading, refreshSession])
 
-  // Initialize form values
-  useEffect(() => {
-    if (userProfile) {
+  // Initialize form values safely
+  const initializeFormValues = useCallback(() => {
+    if (userProfile && !isInitialized) {
       setDisplayName(userProfile.display_name || '')
       setAvatarUrl(userProfile.avatar_url || '')
+      setIsInitialized(true)
     }
-  }, [userProfile])
+  }, [userProfile, isInitialized])
+
+  // Split the effects to prevent the "useInsertionEffect must not schedule updates" error
+  useEffect(() => {
+    // Initialize the session if needed
+    initializeSession()
+  }, [initializeSession])
+
+  // Second effect to initialize form values after userProfile is available
+  useEffect(() => {
+    // Only initialize form values when userProfile is available
+    if (userProfile) {
+      initializeFormValues()
+    }
+  }, [userProfile, initializeFormValues])
 
   // Handle basic profile update
   const handleBasicProfileUpdate = async (e: React.FormEvent) => {
@@ -273,20 +289,102 @@ function ApplicantProfileEditor({
   onSuccess: (message: string) => void,
   onError: (message: string) => void
 }) {
-  const profileData = userProfile.profile_data as ApplicantProfile || {}
+  const profileData = userProfile.profile_data as ApplicantProfile || {};
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
   
   // Form state
-  const [bio, setBio] = useState(profileData?.bio || '')
-  const [skills, setSkills] = useState<string[]>(profileData?.skills || [])
+  const [about, setAbout] = useState('')
+  const [skills, setSkills] = useState<string[]>([])
   const [newSkill, setNewSkill] = useState('')
-  const [education, setEducation] = useState(profileData?.education || '')
-  const [experienceYears, setExperienceYears] = useState<number | null>(
-    profileData?.experience_years !== undefined ? profileData.experience_years : null
-  )
-  const [githubUrl, setGithubUrl] = useState(profileData?.github_url || '')
-  const [linkedinUrl, setLinkedinUrl] = useState(profileData?.linkedin_url || '')
-  const [resumeUrl, setResumeUrl] = useState(profileData?.resume_url || '')
+  const [education, setEducation] = useState<any>(null)
+  const [experience, setExperience] = useState<any>(null)
+  const [certifications, setCertifications] = useState<any>(null)
+  const [projects, setProjects] = useState<any>(null)
+  const [experienceYears, setExperienceYears] = useState<number | null>(null)
+  const [githubUrl, setGithubUrl] = useState('')
+  const [linkedinUrl, setLinkedinUrl] = useState('')
+  const [resumeUrl, setResumeUrl] = useState('')
+  
+  // URL validation
+  const [githubUrlError, setGithubUrlError] = useState('')
+  const [linkedinUrlError, setLinkedinUrlError] = useState('')
+  const [resumeUrlError, setResumeUrlError] = useState('')
+  
+  // Initialize form values safely to prevent React errors
+  const initializeFormValues = useCallback(() => {
+    if (profileData && !isInitialized) {
+      setAbout(profileData.about || '')
+      setSkills(profileData.skills || [])
+      setEducation(profileData.education || null)
+      setExperience(profileData.experience || null)
+      setCertifications(profileData.certifications || null)
+      setProjects(profileData.projects || null)
+      setExperienceYears(
+        profileData.experience_years !== undefined ? profileData.experience_years : null
+      )
+      setGithubUrl(profileData.github_url || '')
+      setLinkedinUrl(profileData.linkedin_url || '')
+      setResumeUrl(profileData.resume_url || '')
+      setIsInitialized(true)
+    }
+  }, [profileData, isInitialized])
+  
+  // Use effect to initialize form values
+  useEffect(() => {
+    initializeFormValues()
+  }, [initializeFormValues])
+  
+  // Basic URL validation function
+  const validateUrl = (url: string): boolean => {
+    if (!url) return true // Empty URLs are allowed
+    try {
+      new URL(url)
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+  
+  // Validate GitHub URL
+  const handleGithubUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value
+    setGithubUrl(url)
+    
+    if (url && !validateUrl(url)) {
+      setGithubUrlError('Please enter a valid URL (e.g., https://github.com/username)')
+    } else if (url && !url.includes('github.com')) {
+      setGithubUrlError('URL should include github.com')
+    } else {
+      setGithubUrlError('')
+    }
+  }
+  
+  // Validate LinkedIn URL
+  const handleLinkedinUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value
+    setLinkedinUrl(url)
+    
+    if (url && !validateUrl(url)) {
+      setLinkedinUrlError('Please enter a valid URL (e.g., https://linkedin.com/in/username)')
+    } else if (url && !url.includes('linkedin.com')) {
+      setLinkedinUrlError('URL should include linkedin.com')
+    } else {
+      setLinkedinUrlError('')
+    }
+  }
+  
+  // Validate Resume URL
+  const handleResumeUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value
+    setResumeUrl(url)
+    
+    if (url && !validateUrl(url)) {
+      setResumeUrlError('Please enter a valid URL')
+    } else {
+      setResumeUrlError('')
+    }
+  }
   
   const handleAddSkill = () => {
     if (newSkill.trim() && !skills.includes(newSkill.trim())) {
@@ -302,6 +400,43 @@ function ApplicantProfileEditor({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Validate all fields before submitting
+    let hasErrors = false
+    
+    // Validate GitHub URL
+    if (githubUrl) {
+      if (!validateUrl(githubUrl)) {
+        setGithubUrlError('Please enter a valid URL')
+        hasErrors = true
+      } else if (!githubUrl.includes('github.com')) {
+        setGithubUrlError('URL should include github.com')
+        hasErrors = true
+      }
+    }
+    
+    // Validate LinkedIn URL
+    if (linkedinUrl) {
+      if (!validateUrl(linkedinUrl)) {
+        setLinkedinUrlError('Please enter a valid URL')
+        hasErrors = true
+      } else if (!linkedinUrl.includes('linkedin.com')) {
+        setLinkedinUrlError('URL should include linkedin.com')
+        hasErrors = true
+      }
+    }
+    
+    // Validate Resume URL
+    if (resumeUrl && !validateUrl(resumeUrl)) {
+      setResumeUrlError('Please enter a valid URL')
+      hasErrors = true
+    }
+    
+    // Don't proceed if there are validation errors
+    if (hasErrors) {
+      onError('Please fix the errors in the form')
+      return
+    }
+    
     try {
       setIsSubmitting(true)
       
@@ -313,9 +448,12 @@ function ApplicantProfileEditor({
         .single()
       
       const applicantData = {
-        bio,
+        about,
         skills,
         education,
+        experience,
+        certifications,
+        projects,
         experience_years: experienceYears,
         github_url: githubUrl,
         linkedin_url: linkedinUrl,
@@ -367,14 +505,14 @@ function ApplicantProfileEditor({
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-5">
-          {/* Bio */}
+          {/* About */}
           <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
+            <Label htmlFor="about">About</Label>
             <Textarea
-              id="bio"
+              id="about"
               placeholder="A brief description of your professional background and interests"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
+              value={about}
+              onChange={(e) => setAbout(e.target.value)}
               rows={4}
             />
           </div>
@@ -421,18 +559,119 @@ function ApplicantProfileEditor({
             )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Education */}
-            <div className="space-y-2">
-              <Label htmlFor="education">Education</Label>
-              <Input
+          <Separator />
+          
+          {/* Education */}
+          <div className="space-y-2">
+            <Label htmlFor="education">Education</Label>
+            <div className="p-4 border rounded-md bg-muted/20">
+              <p className="text-sm mb-2">Enter your education details in JSON format</p>
+              <Textarea
                 id="education"
-                placeholder="Highest degree or certification"
-                value={education}
-                onChange={(e) => setEducation(e.target.value)}
+                placeholder='[{"school":"University Name", "degree":"Bachelors", "field":"Computer Science", "start_date":"2018", "end_date":"2022"}]'
+                value={education ? JSON.stringify(education, null, 2) : ''}
+                onChange={(e) => {
+                  try {
+                    const parsed = e.target.value ? JSON.parse(e.target.value) : null;
+                    setEducation(parsed);
+                  } catch (err) {
+                    // Allow partial input, will validate before submission
+                    setEducation(e.target.value);
+                  }
+                }}
+                rows={5}
+                className="font-mono text-sm"
               />
+              <p className="text-xs text-muted-foreground mt-2">
+                Add your educational background as a JSON array with school, degree, field, and dates
+              </p>
             </div>
-            
+          </div>
+
+          {/* Experience */}
+          <div className="space-y-2">
+            <Label htmlFor="experience">Work Experience</Label>
+            <div className="p-4 border rounded-md bg-muted/20">
+              <p className="text-sm mb-2">Enter your work experience details in JSON format</p>
+              <Textarea
+                id="experience"
+                placeholder='[{"company":"Company Name", "position":"Software Engineer", "start_date":"Jan 2020", "end_date":"Present", "description":"Worked on..."}]'
+                value={experience ? JSON.stringify(experience, null, 2) : ''}
+                onChange={(e) => {
+                  try {
+                    const parsed = e.target.value ? JSON.parse(e.target.value) : null;
+                    setExperience(parsed);
+                  } catch (err) {
+                    // Allow partial input, will validate before submission
+                    setExperience(e.target.value);
+                  }
+                }}
+                rows={5}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Add your work experience as a JSON array with company, position, dates, and description
+              </p>
+            </div>
+          </div>
+
+          {/* Certifications */}
+          <div className="space-y-2">
+            <Label htmlFor="certifications">Certifications</Label>
+            <div className="p-4 border rounded-md bg-muted/20">
+              <p className="text-sm mb-2">Enter your certification details in JSON format</p>
+              <Textarea
+                id="certifications"
+                placeholder='[{"name":"AWS Developer Associate", "issuer":"Amazon Web Services", "date":"2023", "description":"Cloud development certification"}]'
+                value={certifications ? JSON.stringify(certifications, null, 2) : ''}
+                onChange={(e) => {
+                  try {
+                    const parsed = e.target.value ? JSON.parse(e.target.value) : null;
+                    setCertifications(parsed);
+                  } catch (err) {
+                    // Allow partial input, will validate before submission
+                    setCertifications(e.target.value);
+                  }
+                }}
+                rows={5}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Add your certifications as a JSON array with name, issuer, date, and description
+              </p>
+            </div>
+          </div>
+
+          {/* Projects */}
+          <div className="space-y-2">
+            <Label htmlFor="projects">Projects</Label>
+            <div className="p-4 border rounded-md bg-muted/20">
+              <p className="text-sm mb-2">Enter your project details in JSON format</p>
+              <Textarea
+                id="projects"
+                placeholder='[{"name":"Project Name", "description":"A project that...", "url":"https://github.com/username/repo", "technologies":["React", "Node.js"]}]'
+                value={projects ? JSON.stringify(projects, null, 2) : ''}
+                onChange={(e) => {
+                  try {
+                    const parsed = e.target.value ? JSON.parse(e.target.value) : null;
+                    setProjects(parsed);
+                  } catch (err) {
+                    // Allow partial input, will validate before submission
+                    setProjects(e.target.value);
+                  }
+                }}
+                rows={5}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Add your projects as a JSON array with name, description, URL, and technologies
+              </p>
+            </div>
+          </div>
+          
+          <Separator />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Experience Years */}
             <div className="space-y-2">
               <Label htmlFor="experienceYears">Years of Experience</Label>
@@ -454,56 +693,158 @@ function ApplicantProfileEditor({
           
           {/* Professional Links */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium">Professional Links</h3>
+            <h3 className="text-sm font-medium leading-6">Professional Links</h3>
+            <p className="text-sm text-muted-foreground">Add your social and professional profiles to enhance your visibility to employers</p>
             
-            <div className="space-y-2">
-              <Label htmlFor="githubUrl">GitHub Profile</Label>
-              <Input
-                id="githubUrl"
-                placeholder="https://github.com/yourusername"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <Label htmlFor="linkedinUrl" className="flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#0A66C2]">
+                    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                    <rect width="4" height="12" x="2" y="9"></rect>
+                    <circle cx="4" cy="4" r="2"></circle>
+                  </svg>
+                  LinkedIn Profile
+                </Label>
+                <Input
+                  id="linkedinUrl"
+                  placeholder="https://linkedin.com/in/yourusername"
+                  value={linkedinUrl}
+                  onChange={handleLinkedinUrlChange}
+                  className={`bg-white/50 ${linkedinUrlError ? 'border-red-500' : ''}`}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Add your LinkedIn profile to showcase your professional experience
+                </p>
+                {linkedinUrlError && (
+                  <p className="text-xs text-red-500 mt-1">{linkedinUrlError}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="githubUrl" className="flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#333]">
+                    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"></path>
+                    <path d="M9 18c-4.51 2-5-2-7-2"></path>
+                  </svg>
+                  GitHub Profile
+                </Label>
+                <Input
+                  id="githubUrl"
+                  placeholder="https://github.com/yourusername"
+                  value={githubUrl}
+                  onChange={handleGithubUrlChange}
+                  className={`bg-white/50 ${githubUrlError ? 'border-red-500' : ''}`}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Showcase your code and projects to potential employers
+                </p>
+                {githubUrlError && (
+                  <p className="text-xs text-red-500 mt-1">{githubUrlError}</p>
+                )}
+              </div>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="linkedinUrl">LinkedIn Profile</Label>
-              <Input
-                id="linkedinUrl"
-                placeholder="https://linkedin.com/in/yourusername"
-                value={linkedinUrl}
-                onChange={(e) => setLinkedinUrl(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
+            <div className="space-y-2 pt-2">
               <Label htmlFor="resumeUrl">Resume URL</Label>
               <Input
                 id="resumeUrl"
                 placeholder="Link to your resume (PDF, Google Doc, etc.)"
                 value={resumeUrl}
-                onChange={(e) => setResumeUrl(e.target.value)}
+                onChange={handleResumeUrlChange}
+                className={resumeUrlError ? 'border-red-500' : ''}
               />
+              <p className="text-xs text-muted-foreground">
+                Provide a link to your resume hosted on Google Drive, Dropbox, or similar services
+              </p>
+              {resumeUrlError && (
+                <p className="text-xs text-red-500 mt-1">{resumeUrlError}</p>
+              )}
             </div>
           </div>
         </CardContent>
-        <CardFooter className="justify-end space-x-2">
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <LuLoader className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <LuSave className="mr-2 h-4 w-4" />
-                Save Applicant Profile
-              </>
-            )}
-          </Button>
+        <CardFooter className="flex-col items-stretch space-y-6">
+          {/* Preview section */}
+          <div className="w-full border rounded-lg p-4 bg-muted/20">
+            <h4 className="text-sm font-medium mb-2">Profile Preview</h4>
+            <p className="text-xs text-muted-foreground mb-3">This is how your profile will appear to recruiters</p>
+            
+            <div className="flex flex-wrap gap-3 mt-3">
+              {linkedinUrl && (
+                <a 
+                  href={linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-xs gap-1.5 px-3 py-1.5 bg-[#0A66C2]/10 text-[#0A66C2] rounded-full hover:bg-[#0A66C2]/20 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                    <rect width="4" height="12" x="2" y="9"></rect>
+                    <circle cx="4" cy="4" r="2"></circle>
+                  </svg>
+                  LinkedIn
+                </a>
+              )}
+              
+              {githubUrl && (
+                <a 
+                  href={githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-xs gap-1.5 px-3 py-1.5 bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"></path>
+                    <path d="M9 18c-4.51 2-5-2-7-2"></path>
+                  </svg>
+                  GitHub
+                </a>
+              )}
+              
+              {resumeUrl && (
+                <a 
+                  href={resumeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-xs gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" x2="8" y1="13" y2="13"></line>
+                    <line x1="16" x2="8" y1="17" y2="17"></line>
+                    <line x1="10" x2="8" y1="9" y2="9"></line>
+                  </svg>
+                  Resume
+                </a>
+              )}
+              
+              {!linkedinUrl && !githubUrl && !resumeUrl && (
+                <span className="text-xs text-muted-foreground italic">
+                  Add professional links to see how they'll appear
+                </span>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex justify-end w-full">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <LuLoader className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <LuSave className="mr-2 h-4 w-4" />
+                  Save Applicant Profile
+                </>
+              )}
+            </Button>
+          </div>
         </CardFooter>
       </form>
     </Card>
@@ -524,17 +865,37 @@ function CompanyProfileEditor({
   onSuccess: (message: string) => void,
   onError: (message: string) => void
 }) {
-  const profileData = userProfile.profile_data as CompanyProfile || {}
+  const profileData = userProfile.profile_data as CompanyProfile || {};
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
   
   // Form state
-  const [companyName, setCompanyName] = useState(profileData?.company_name || '')
-  const [industry, setIndustry] = useState(profileData?.industry || '')
-  const [companySize, setCompanySize] = useState(profileData?.company_size || '')
-  const [description, setDescription] = useState(profileData?.description || '')
-  const [websiteUrl, setWebsiteUrl] = useState(profileData?.website_url || '')
-  const [linkedinUrl, setLinkedinUrl] = useState(profileData?.linkedin_url || '')
-  const [logoUrl, setLogoUrl] = useState(profileData?.logo_url || '')
+  const [companyName, setCompanyName] = useState('')
+  const [industry, setIndustry] = useState('')
+  const [companySize, setCompanySize] = useState('')
+  const [description, setDescription] = useState('')
+  const [websiteUrl, setWebsiteUrl] = useState('')
+  const [linkedinUrl, setLinkedinUrl] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
+  
+  // Initialize form values safely to prevent React errors
+  const initializeFormValues = useCallback(() => {
+    if (profileData && !isInitialized) {
+      setCompanyName(profileData.company_name || '')
+      setIndustry(profileData.industry || '')
+      setCompanySize(profileData.company_size || '')
+      setDescription(profileData.description || '')
+      setWebsiteUrl(profileData.website_url || '')
+      setLinkedinUrl(profileData.linkedin_url || '')
+      setLogoUrl(profileData.logo_url || '')
+      setIsInitialized(true)
+    }
+  }, [profileData, isInitialized])
+  
+  // Use effect to initialize form values
+  useEffect(() => {
+    initializeFormValues()
+  }, [initializeFormValues])
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

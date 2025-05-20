@@ -1,20 +1,11 @@
-import { Toaster } from 'sonner';
-import type { Metadata } from 'next';
+'use client'
+
 import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from '@/components/ui/toaster';
 import Script from 'next/script';
 import { AuthProvider } from '@/contexts/auth-context';
 
 import './globals.css';
-
-export const metadata: Metadata = {
-  metadataBase: new URL('https://chat.vercel.ai'),
-  title: 'findr.ai - Let Your Portfolio Speak',
-  description: 'Connect GitHub and LinkedIn, get matched with jobs, and apply with one click. No more resumes.',
-};
-
-export const viewport = {
-  maximumScale: 1, // Disable auto-zoom on mobile Safari
-};
 
 const LIGHT_THEME_COLOR = 'hsl(0 0% 100%)';
 const DARK_THEME_COLOR = 'hsl(240deg 10% 3.92%)';
@@ -65,11 +56,11 @@ const LOWERCASE_SCRIPT = `
 })();
 `;
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html
       lang="en"
@@ -81,6 +72,8 @@ export default async function RootLayout({
       className="apple-style light"
     >
       <head>
+        <title>findr.ai - Let Your Portfolio Speak</title>
+        <meta name="description" content="Connect GitHub and LinkedIn, get matched with jobs, and apply with one click. No more resumes." />
         <script
           dangerouslySetInnerHTML={{
             __html: THEME_COLOR_SCRIPT,
@@ -102,16 +95,27 @@ export default async function RootLayout({
           `
         }} />
         <script dangerouslySetInnerHTML={{ __html: LOWERCASE_SCRIPT }} />
+        <meta
+          name="viewport"
+          content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=yes"
+        />
+        <Script
+          async
+          defer
+          strategy="lazyOnload"
+          src="https://analytics.us.umami.is/script.js"
+          data-website-id="b95a4fe5-29b7-41a1-a7f8-eb7bdc0621e8"
+        />
       </head>
       <body className="antialiased lowercase-text" suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
+          defaultTheme="system"
+          enableSystem
           disableTransitionOnChange
         >
           <AuthProvider>
-            <Toaster position="top-center" />
+            <Toaster />
             {children}
           </AuthProvider>
         </ThemeProvider>

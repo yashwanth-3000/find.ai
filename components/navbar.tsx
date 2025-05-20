@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LuMenu, LuX, LuLogOut, LuLoader } from 'react-icons/lu'
+import { LuMenu, LuX, LuLogOut, LuLoader, LuUser, LuBuilding } from 'react-icons/lu'
 import { forceSignOut, debugAuthState, serverSignOut } from '@/lib/auth-utils'
 import { Container } from '@/components/layout/container'
 
@@ -201,22 +201,35 @@ export function Navbar() {
           {/* Auth items */}
           {!user ? (
             // Sign in button for non-authenticated users
-            <Button asChild variant="outline" size="sm" className="rounded-full">
-              <Link href="/signin">Sign In</Link>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="rounded-full" 
+              onClick={() => {
+                console.log("Sign in button clicked");
+                window.location.href = "/signin";
+              }}
+            >
+              Sign In
             </Button>
           ) : (
             // Avatar dropdown for authenticated users
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
+                <div className="flex items-center gap-2">
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
                     {userProfile?.avatar_url ? (
                       <AvatarImage src={userProfile.avatar_url} alt={userProfile.display_name || 'User'} />
                     ) : (
-                      <AvatarFallback>{getInitials(userProfile?.display_name || undefined)}</AvatarFallback>
+                        <AvatarFallback>
+                          <LuUser className="h-5 w-5 text-muted-foreground" />
+                        </AvatarFallback>
                     )}
                   </Avatar>
                 </Button>
+                  <span className="hidden md:inline font-medium max-w-[120px] truncate">{getDisplayName()}</span>
+                </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="flex items-center justify-start gap-2 p-2">
@@ -234,25 +247,27 @@ export function Navbar() {
                     )}
                   </div>
                 </div>
-                <DropdownMenuSeparator />
-                {isApplicant && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/applicant/profile/edit">Edit Profile</Link>
-                  </DropdownMenuItem>
-                )}
-                {isCompany && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/company/profile/edit">Edit Profile</Link>
-                  </DropdownMenuItem>
-                )}
-                {!userProfile?.role && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/role-selector">Select Role</Link>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem asChild>
-                  <Link href="/profile">View Profile</Link>
-                </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                  {!userProfile?.role && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/role-selector">Select Role</Link>
+                    </DropdownMenuItem>
+                  )}
+                  {userProfile?.role === 'applicant' && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/applicant/profile">View Profile</Link>
+                    </DropdownMenuItem>
+                  )}
+                  {userProfile?.role === 'company' && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/company/profile">View Profile</Link>
+                    </DropdownMenuItem>
+                  )}
+                  {!userProfile?.role && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile">View Profile</Link>
+                    </DropdownMenuItem>
+                  )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
@@ -303,14 +318,19 @@ export function Navbar() {
                 </Link>
               ))}
               {authLinks.map((item) => (
-                <Link
+                <Button
                   key={item.name}
-                  href={item.path}
-                  className="text-sm font-medium px-2 py-1.5 text-primary rounded-md border border-border"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  variant="outline"
+                  size="sm"
+                  className="text-sm font-medium px-4 py-2 text-primary rounded-md border border-border w-full"
+                  onClick={() => {
+                    console.log("Mobile sign in button clicked");
+                    setIsMobileMenuOpen(false);
+                    window.location.href = item.path;
+                  }}
                 >
                   {item.name}
-                </Link>
+                </Button>
               ))}
               {user && (
                 <>
@@ -320,13 +340,13 @@ export function Navbar() {
                       {userProfile?.avatar_url ? (
                         <AvatarImage src={userProfile.avatar_url} alt={userProfile.display_name || 'User'} />
                       ) : (
-                        <AvatarFallback>{getInitials(userProfile?.display_name || undefined)}</AvatarFallback>
+                        <AvatarFallback>
+                          <LuUser className="h-5 w-5 text-muted-foreground" />
+                        </AvatarFallback>
                       )}
                     </Avatar>
-                    <div className="flex flex-col">
-                      <p className="font-medium">
-                        {getDisplayName()}
-                      </p>
+                    <span className="font-medium max-w-[120px] truncate">{getDisplayName()}</span>
+                    <div className="flex flex-col ml-2">
                       <p className="text-xs text-muted-foreground">{userProfile?.email || user?.email}</p>
                       {userProfile?.role && (
                         <p className="text-xs mt-1">
@@ -337,42 +357,44 @@ export function Navbar() {
                       )}
                     </div>
                   </div>
-                  {isApplicant && (
-                    <Link 
-                      href="/applicant/profile/edit" 
-                      className="text-sm font-medium px-2 py-1.5 rounded-md transition-colors hover:bg-muted"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Edit Profile
-                    </Link>
-                  )}
-                  {isCompany && (
-                    <Link 
-                      href="/company/profile/edit" 
-                      className="text-sm font-medium px-2 py-1.5 rounded-md transition-colors hover:bg-muted"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Edit Profile
-                    </Link>
-                  )}
-                  {!userProfile?.role && (
-                    <Link 
-                      href="/role-selector" 
-                      className="text-sm font-medium px-2 py-1.5 rounded-md transition-colors hover:bg-muted"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Select Role
-                    </Link>
-                  )}
-                  <Link 
-                    href="/profile" 
-                    className="text-sm font-medium px-2 py-1.5 rounded-md transition-colors hover:bg-muted"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    View Profile
-                  </Link>
-                  <Button 
-                    variant="destructive" 
+                                      {!userProfile?.role && (
+                      <Link 
+                        href="/role-selector" 
+                        className="text-sm font-medium px-2 py-1.5 rounded-md transition-colors hover:bg-muted"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Select Role
+                      </Link>
+                    )}
+                    {userProfile?.role === 'applicant' && (
+                      <Link 
+                        href="/applicant/profile" 
+                        className="text-sm font-medium px-2 py-1.5 rounded-md transition-colors hover:bg-muted"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        View Profile
+                      </Link>
+                    )}
+                    {userProfile?.role === 'company' && (
+                      <Link 
+                        href="/company/profile" 
+                        className="text-sm font-medium px-2 py-1.5 rounded-md transition-colors hover:bg-muted"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        View Profile
+                      </Link>
+                    )}
+                    {!userProfile?.role && (
+                      <Link 
+                        href="/profile" 
+                        className="text-sm font-medium px-2 py-1.5 rounded-md transition-colors hover:bg-muted"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        View Profile
+                      </Link>
+                    )}
+                    <Button 
+                      variant="destructive"  
                     onClick={handleSignOut}
                     className="w-full mt-2"
                     disabled={isSubmitting}

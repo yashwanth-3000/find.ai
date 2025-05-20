@@ -1,43 +1,72 @@
 import { Metadata } from 'next'
 import { Navbar } from '@/components/navbar'
-import UserProfile from '@/components/auth/user-profile'
-import RoleGuard from '@/components/auth/role-guard'
+import { redirect } from 'next/navigation'
+import { createServerClient } from '@/lib/supabase'
+import { Container } from '@/components/layout/container'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { LuArrowRight, LuUser, LuBuilding } from 'react-icons/lu'
 
 export const metadata: Metadata = {
-  title: 'Your Profile | findr.ai',
-  description: 'View and edit your profile information',
+  title: 'Your Profile',
+  description: 'View and manage your profile',
 }
 
-function ProfilePageContent() {
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      <main className="flex-1 pt-20">
-        <div className="container py-12">
-          <h1 className="text-3xl font-bold mb-8">Your Profile</h1>
-          
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-lg border shadow-sm p-6">
-              <h2 className="text-xl font-semibold mb-6">Account Information</h2>
-              <UserProfile />
-            </div>
-            
-            <div className="mt-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                This page is accessible to all authenticated users, regardless of their role.
-              </p>
-            </div>
+export default async function ProfileRedirect() {
+  const supabase = createServerClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  
+  if (!session) {
+    // Redirect to sign in if not authenticated
+    redirect('/signin')
+  }
+  
+  // Get user profile
+  const { data: userProfile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single()
+  
+  // If no profile, redirect to role selection
+  if (!userProfile) {
+    return (
+      <>
+        <Navbar />
+        <Container>
+          <div className="pt-24 pb-12">
+            <Card className="max-w-lg mx-auto">
+              <CardHeader>
+                <CardTitle>Complete Your Profile</CardTitle>
+                <CardDescription>
+                  Please select a role to continue using the platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center space-y-4">
+                <p className="text-center text-muted-foreground mb-4">
+                  Before you can access your profile, you need to choose whether you're an applicant or a company.
+                </p>
+                <Button asChild className="w-full">
+                  <a href="/role-select" className="flex items-center justify-center gap-2">
+                    Select Your Role
+                    <LuArrowRight className="h-4 w-4" />
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      </main>
-    </div>
-  )
-}
-
-export default function ProfilePage() {
-  return (
-    <RoleGuard allowedRoles="any">
-      <ProfilePageContent />
-    </RoleGuard>
-  )
+        </Container>
+      </>
+    )
+  }
+  
+  // Redirect to role-specific profile page
+  if (userProfile.role === 'applicant') {
+    redirect('/applicant/profile')
+  } else if (userProfile.role === 'company') {
+    redirect('/company/profile')
+  } else {
+    // If role is not recognized, prompt to select a role
+    redirect('/role-select')
+  }
 } 

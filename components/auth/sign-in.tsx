@@ -133,57 +133,14 @@ export default function SignIn() {
     try {
       setIsLoading(true)
       setLocalError(null)
-
-      // Test Supabase connection before attempting to sign in
-      const checkResult = await runAllChecks()
-      if (!checkResult.connection.connected) {
-        console.error('Supabase connection failed:', checkResult)
-        setLocalError('Could not connect to authentication service')
-        setIsLoading(false)
-        return
-      }
-
-      // Clear any previous auth flow state
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_flow_start', new Date().toISOString())
-        
-        // Clear any previous auth fragments in URL
-        if (window.location.hash || window.location.search.includes('error=')) {
-          window.history.replaceState({}, document.title, window.location.pathname)
-        }
-      }
-
+      
       console.log('Starting Google sign-in process')
       
-      // Get the current origin for the callback URL
-      const origin = window.location.origin
-      const callbackUrl = `${origin}/auth/callback`
+      // Simplified approach - directly use the context method
+      await signInWithGoogle()
       
-      console.log('Using callback URL:', callbackUrl)
-      
-      // Create a Supabase client for the sign-in
-      const supabase = createBrowserClient()
-      
-      // Initiate the sign-in process with Google
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: callbackUrl,
-          // No additional query params needed for implicit flow
-        }
-      })
-
-      if (error) {
-        console.error('Google sign-in error:', error.message)
-        setLocalError(error.message)
-        setIsLoading(false)
-        return
-      }
-      
-      // If we get here, the redirect is about to happen
-      console.log('Redirecting to Google for authentication...')
-      
-      // The page will be redirected by Supabase OAuth
+      // The signInWithGoogle method will handle the redirect
+      // No additional code needed here as the OAuth flow will take over
     } catch (err) {
       console.error('Sign in error:', err)
       setLocalError((err as Error).message || 'Sign in failed')
@@ -276,6 +233,9 @@ export default function SignIn() {
           </CardHeader>
           <CardContent className="flex flex-col items-center py-6 gap-4">
             <LuLoader className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground mt-4 text-center">
+              If loading takes more than 3 seconds, please refresh the page.
+            </p>
             <Button variant="outline" size="sm" onClick={handleResetAuth}>
               <LuRefreshCw className="mr-2 h-4 w-4" />
               Reset Authentication
