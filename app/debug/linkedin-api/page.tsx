@@ -12,19 +12,21 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { LuLoader, LuSend, LuTerminal, LuDownload, LuInfo, LuRefreshCcw, LuCopy, LuClipboard, LuCheck, LuCode } from 'react-icons/lu'
+import { useToast } from '@/components/ui/use-toast'
 
 export default function LinkedInApiTest() {
   const { user } = useAuth()
+  const { toast } = useToast()
   
-  // States for API test
-  const [linkedinUrl, setLinkedinUrl] = useState('https://www.linkedin.com/in/pyashwanthkrishna/')
-  const [apiKey, setApiKey] = useState('fd1c528d-23db-4f4b-9dbc-53835c75e2b8')
+  // State for input values
+  const [linkedinUrl, setLinkedinUrl] = useState('')
+  const [apiKey, setApiKey] = useState('7188c6d4-44e1-40d0-9309-d211fbaa4160')
   const [isTesting, setIsTesting] = useState(false)
   const [logs, setLogs] = useState<{timestamp: string, message: string, type: 'info' | 'error' | 'success'}[]>([])
   const [snapshotId, setSnapshotId] = useState<string | null>(null)
   const [resultData, setResultData] = useState<any>(null)
   const [isPolling, setIsPolling] = useState(true)
-  const [saveToDb, setSaveToDb] = useState(true)
+  const [saveToDb, setSaveToDb] = useState(false)
   const [copySuccess, setCopySuccess] = useState(false)
   const [autoPollingActive, setAutoPollingActive] = useState(false)
   const [apiResponses, setApiResponses] = useState<{timestamp: string, endpoint: string, response: any}[]>([])
@@ -100,8 +102,11 @@ export default function LinkedInApiTest() {
       return;
     }
     
-    if (!apiKey || !linkedinUrl) {
-      addLog('API key and LinkedIn URL are required', 'error')
+    // If API key is not provided, use the default one
+    const effectiveApiKey = apiKey || '7188c6d4-44e1-40d0-9309-d211fbaa4160';
+    
+    if (!linkedinUrl) {
+      addLog('LinkedIn URL is required', 'error')
       return
     }
     
@@ -121,7 +126,7 @@ export default function LinkedInApiTest() {
         },
         body: JSON.stringify({
           url: linkedinUrl,
-          apiKey: apiKey
+          apiKey: effectiveApiKey
         })
       })
       
@@ -203,12 +208,15 @@ export default function LinkedInApiTest() {
       return;
     }
     
+    // If API key is not provided, use the default one
+    const effectiveApiKey = apiKey || '7188c6d4-44e1-40d0-9309-d211fbaa4160';
+    
     addLog(`Fetching snapshot data for ID: ${id}...`, 'info');
     setIsTesting(true);
     
     try {
       // Use our proxy API endpoint instead of calling Brightdata directly
-      const response = await fetch(`/api/linkedin/snapshot?id=${id}&apiKey=${encodeURIComponent(apiKey)}`)
+      const response = await fetch(`/api/linkedin/snapshot?id=${id}&apiKey=${encodeURIComponent(effectiveApiKey)}`)
         .catch(error => {
           console.error('Network error during fetch:', error);
           throw new Error('Network error: Failed to connect to the API server');
