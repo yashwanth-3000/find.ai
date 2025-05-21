@@ -282,7 +282,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       // Get exact current origin for reliable redirects
-      const origin = window.location.origin
+      // Use environment variable for deployed site URL as fallback
+      const origin = window.location.origin || process.env.NEXT_PUBLIC_SITE_URL || 'https://findr-ai.vercel.app'
       const callbackUrl = `${origin}/auth/callback`
       
       console.log('Starting Google sign-in with callback URL:', callbackUrl)

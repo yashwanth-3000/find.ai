@@ -294,13 +294,10 @@ function ApplicantProfileEditor({
   const [isInitialized, setIsInitialized] = useState(false)
   
   // Form state
-  const [about, setAbout] = useState('')
+  const [bio, setBio] = useState('')
   const [skills, setSkills] = useState<string[]>([])
   const [newSkill, setNewSkill] = useState('')
-  const [education, setEducation] = useState<any>(null)
-  const [experience, setExperience] = useState<any>(null)
-  const [certifications, setCertifications] = useState<any>(null)
-  const [projects, setProjects] = useState<any>(null)
+  const [education, setEducation] = useState('')
   const [experienceYears, setExperienceYears] = useState<number | null>(null)
   const [githubUrl, setGithubUrl] = useState('')
   const [linkedinUrl, setLinkedinUrl] = useState('')
@@ -314,12 +311,9 @@ function ApplicantProfileEditor({
   // Initialize form values safely to prevent React errors
   const initializeFormValues = useCallback(() => {
     if (profileData && !isInitialized) {
-      setAbout(profileData.about || '')
+      setBio(profileData.bio || '')
       setSkills(profileData.skills || [])
-      setEducation(profileData.education || null)
-      setExperience(profileData.experience || null)
-      setCertifications(profileData.certifications || null)
-      setProjects(profileData.projects || null)
+      setEducation(profileData.education || '')
       setExperienceYears(
         profileData.experience_years !== undefined ? profileData.experience_years : null
       )
@@ -448,12 +442,9 @@ function ApplicantProfileEditor({
         .single()
       
       const applicantData = {
-        about,
+        bio,
         skills,
         education,
-        experience,
-        certifications,
-        projects,
         experience_years: experienceYears,
         github_url: githubUrl,
         linkedin_url: linkedinUrl,
@@ -505,14 +496,14 @@ function ApplicantProfileEditor({
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-5">
-          {/* About */}
+          {/* Bio */}
           <div className="space-y-2">
-            <Label htmlFor="about">About</Label>
+            <Label htmlFor="bio">Bio</Label>
             <Textarea
-              id="about"
+              id="bio"
               placeholder="A brief description of your professional background and interests"
-              value={about}
-              onChange={(e) => setAbout(e.target.value)}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
               rows={4}
             />
           </div>
@@ -559,119 +550,18 @@ function ApplicantProfileEditor({
             )}
           </div>
           
-          <Separator />
-          
-          {/* Education */}
-          <div className="space-y-2">
-            <Label htmlFor="education">Education</Label>
-            <div className="p-4 border rounded-md bg-muted/20">
-              <p className="text-sm mb-2">Enter your education details in JSON format</p>
-              <Textarea
-                id="education"
-                placeholder='[{"school":"University Name", "degree":"Bachelors", "field":"Computer Science", "start_date":"2018", "end_date":"2022"}]'
-                value={education ? JSON.stringify(education, null, 2) : ''}
-                onChange={(e) => {
-                  try {
-                    const parsed = e.target.value ? JSON.parse(e.target.value) : null;
-                    setEducation(parsed);
-                  } catch (err) {
-                    // Allow partial input, will validate before submission
-                    setEducation(e.target.value);
-                  }
-                }}
-                rows={5}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Add your educational background as a JSON array with school, degree, field, and dates
-              </p>
-            </div>
-          </div>
-
-          {/* Experience */}
-          <div className="space-y-2">
-            <Label htmlFor="experience">Work Experience</Label>
-            <div className="p-4 border rounded-md bg-muted/20">
-              <p className="text-sm mb-2">Enter your work experience details in JSON format</p>
-              <Textarea
-                id="experience"
-                placeholder='[{"company":"Company Name", "position":"Software Engineer", "start_date":"Jan 2020", "end_date":"Present", "description":"Worked on..."}]'
-                value={experience ? JSON.stringify(experience, null, 2) : ''}
-                onChange={(e) => {
-                  try {
-                    const parsed = e.target.value ? JSON.parse(e.target.value) : null;
-                    setExperience(parsed);
-                  } catch (err) {
-                    // Allow partial input, will validate before submission
-                    setExperience(e.target.value);
-                  }
-                }}
-                rows={5}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Add your work experience as a JSON array with company, position, dates, and description
-              </p>
-            </div>
-          </div>
-
-          {/* Certifications */}
-          <div className="space-y-2">
-            <Label htmlFor="certifications">Certifications</Label>
-            <div className="p-4 border rounded-md bg-muted/20">
-              <p className="text-sm mb-2">Enter your certification details in JSON format</p>
-              <Textarea
-                id="certifications"
-                placeholder='[{"name":"AWS Developer Associate", "issuer":"Amazon Web Services", "date":"2023", "description":"Cloud development certification"}]'
-                value={certifications ? JSON.stringify(certifications, null, 2) : ''}
-                onChange={(e) => {
-                  try {
-                    const parsed = e.target.value ? JSON.parse(e.target.value) : null;
-                    setCertifications(parsed);
-                  } catch (err) {
-                    // Allow partial input, will validate before submission
-                    setCertifications(e.target.value);
-                  }
-                }}
-                rows={5}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Add your certifications as a JSON array with name, issuer, date, and description
-              </p>
-            </div>
-          </div>
-
-          {/* Projects */}
-          <div className="space-y-2">
-            <Label htmlFor="projects">Projects</Label>
-            <div className="p-4 border rounded-md bg-muted/20">
-              <p className="text-sm mb-2">Enter your project details in JSON format</p>
-              <Textarea
-                id="projects"
-                placeholder='[{"name":"Project Name", "description":"A project that...", "url":"https://github.com/username/repo", "technologies":["React", "Node.js"]}]'
-                value={projects ? JSON.stringify(projects, null, 2) : ''}
-                onChange={(e) => {
-                  try {
-                    const parsed = e.target.value ? JSON.parse(e.target.value) : null;
-                    setProjects(parsed);
-                  } catch (err) {
-                    // Allow partial input, will validate before submission
-                    setProjects(e.target.value);
-                  }
-                }}
-                rows={5}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Add your projects as a JSON array with name, description, URL, and technologies
-              </p>
-            </div>
-          </div>
-          
-          <Separator />
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Education */}
+            <div className="space-y-2">
+              <Label htmlFor="education">Education</Label>
+              <Input
+                id="education"
+                placeholder="Highest degree or certification"
+                value={education}
+                onChange={(e) => setEducation(e.target.value)}
+              />
+            </div>
+            
             {/* Experience Years */}
             <div className="space-y-2">
               <Label htmlFor="experienceYears">Years of Experience</Label>

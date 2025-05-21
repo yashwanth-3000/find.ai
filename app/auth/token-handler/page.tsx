@@ -32,10 +32,12 @@ export default function TokenHandler() {
         return
       }
       
-      console.log('Processing token from URL fragment')
+      console.log('Processing token from URL fragment or search params')
       const hash = window.location.hash
+      const search = window.location.search
       
-      if (!hash) {
+      // First check if we have tokens in the URL hash or search params
+      if (!hash && !search.includes('access_token')) {
         const errorMsg = 'No token found in URL'
         console.error(errorMsg)
         setError(errorMsg)
@@ -43,9 +45,14 @@ export default function TokenHandler() {
         return
       }
       
-      // Log the hash format (for debugging, hide sensitive data)
-      console.log(`Hash format: ${hash.split('=')[0]}=...`)
-      setDebugInfo(`URL contains hash starting with: ${hash.split('=')[0]}=...`)
+      // Create debug info
+      if (hash) {
+        console.log(`Hash format: ${hash.split('=')[0]}=...`)
+        setDebugInfo(`URL contains hash starting with: ${hash.split('=')[0]}=...`)
+      } else if (search) {
+        console.log(`Search format: ${search.split('=')[0]}=...`)
+        setDebugInfo(`URL contains search params starting with: ${search.split('=')[0]}=...`)
+      }
       
       // Create a Supabase client
       const supabase = createBrowserClient()
@@ -87,16 +94,28 @@ export default function TokenHandler() {
         }
         
         // If automatic detection failed, try manual extraction
-        console.log('Trying manual token extraction from URL fragment')
+        console.log('Trying manual token extraction from URL')
         setDebugInfo((prev) => `${prev}\nTrying manual token extraction`)
         
-        // Extract tokens from hash
-        const params = new URLSearchParams(hash.substring(1))
-        const accessToken = params.get('access_token')
-        const refreshToken = params.get('refresh_token')
+        let accessToken: string | null = null
+        let refreshToken: string | null = null
+        
+        // Extract from hash if present
+        if (hash) {
+          const hashParams = new URLSearchParams(hash.substring(1))
+          accessToken = hashParams.get('access_token')
+          refreshToken = hashParams.get('refresh_token')
+        }
+        
+        // Or extract from search params if present
+        if (!accessToken && search) {
+          const searchParams = new URLSearchParams(search)
+          accessToken = searchParams.get('access_token')
+          refreshToken = searchParams.get('refresh_token')
+        }
         
         if (!accessToken) {
-          throw new Error('No access token found in URL fragment')
+          throw new Error('No access token found in URL fragment or search params')
         }
         
         // Set session manually
@@ -109,7 +128,7 @@ export default function TokenHandler() {
           throw sessionError
         }
         
-        // Clear hash from URL
+        // Clear hash/params from URL
         window.history.replaceState({}, document.title, window.location.pathname)
         
         // Get user session and redirect
