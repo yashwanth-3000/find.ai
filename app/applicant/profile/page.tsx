@@ -36,7 +36,7 @@ import {
   LuRefreshCw
 } from 'react-icons/lu'
 import { Textarea } from '@/components/ui/textarea'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '../../../components/ui/use-toast'
 
 // Experience component
 function ExperienceItem({ experience }: { experience: any }) {
@@ -437,7 +437,6 @@ export default function ApplicantProfilePage() {
     }
     
     setSavingUrl(true);
-    setLoadingProfile(true); // Also set main loading state
     addLog(`Saving LinkedIn URL: ${linkedinUrl}`);
     
     try {
@@ -473,7 +472,8 @@ export default function ApplicantProfilePage() {
       const shouldFetch = window.confirm("LinkedIn URL saved. Would you like to import your LinkedIn data now?");
       if (shouldFetch) {
         addLog("User chose to fetch LinkedIn data");
-        fetchLinkedInData();
+        // Redirect to progress page instead of doing the import here
+        router.push('/applicant/profile/progress');
       } else {
         addLog("User skipped LinkedIn data import");
         setLoadingProfile(false);
@@ -507,7 +507,7 @@ export default function ApplicantProfilePage() {
       // Start polling for results from the existing snapshot
       let profileData = null
       let attempts = 0
-      const maxAttempts = 10
+      const maxAttempts = 25
       
       while (!profileData && attempts < maxAttempts) {
         attempts++
@@ -600,7 +600,7 @@ export default function ApplicantProfilePage() {
     }
   }
   
-  // Update the fetchLinkedInData function to save import status
+  // Update the fetchLinkedInData function to redirect to progress page
   const fetchLinkedInData = async () => {
     if (!profile?.linkedin_url) {
       addLog("No LinkedIn URL found, showing prompt", 'error')
@@ -608,156 +608,8 @@ export default function ApplicantProfilePage() {
       return
     }
     
-    // Enable debug console while fetching
-    setShowDebugConsole(true)
-    setFetchingLinkedIn(true)
-    setLoadingProfile(true)
-    
-    // Clear previous logs
-    clearLogs()
-    addLog("Starting LinkedIn data import process...", 'info')
-    addLog(`Target URL: ${profile.linkedin_url}`, 'info')
-    
-    try {
-      // Step 1: Trigger the API
-      addLog('Triggering Brightdata API request...', 'info')
-      
-      const triggerResponse = await fetch('/api/linkedin/trigger', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          url: profile.linkedin_url,
-          apiKey: apiKey
-        })
-      })
-      
-      const triggerData = await triggerResponse.json()
-      
-      if (!triggerResponse.ok) {
-        throw new Error(triggerData.error || `API failed with status: ${triggerResponse.status}`)
-      }
-      
-      addLog('API request successful', 'success')
-      
-      if (!triggerData.snapshot_id) {
-        throw new Error('No snapshot ID returned from API')
-      }
-      
-      const newSnapshotId = triggerData.snapshot_id
-      setSnapshotId(newSnapshotId)
-      setLastSnapshotId(newSnapshotId)
-      addLog(`Snapshot ID received: ${newSnapshotId}`, 'success')
-      
-      // Update database to mark import as pending
-      if (user) {
-        await supabase
-          .from('applicant_profiles')
-          .update({
-            linkedin_import_status: 'pending',
-            linkedin_snapshot_id: newSnapshotId,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id)
-        
-        setImportStatus('pending')
-      }
-      
-      // Step 2: Poll for results
-      let profileData = null
-      let attempts = 0
-      const maxAttempts = 10
-      
-      while (!profileData && attempts < maxAttempts) {
-        attempts++
-        addLog(`Fetching data attempt ${attempts}/${maxAttempts}...`, 'info')
-        
-        // Wait 5 seconds between attempts
-        await new Promise(resolve => setTimeout(resolve, 5000))
-        
-        const snapshotResponse = await fetch(`/api/linkedin/snapshot?id=${newSnapshotId}&apiKey=${encodeURIComponent(apiKey)}`)
-        const snapshotData = await snapshotResponse.json()
-        
-        if (!snapshotResponse.ok) {
-          addLog(`Error fetching snapshot: ${snapshotData.error || snapshotResponse.statusText}`, 'error')
-          continue
-        }
-        
-        // Check if still processing
-        if (snapshotData && snapshotData.status === 'running') {
-          addLog('Snapshot is still processing, waiting...', 'info')
-          continue
-        }
-        
-        // Check if we have valid data
-        if (Array.isArray(snapshotData) && snapshotData.length > 0) {
-          // Check if we have a valid profile
-          if (snapshotData[0].name || snapshotData[0].id || snapshotData[0].linkedin_id) {
-            profileData = snapshotData[0]
-            addLog('Successfully retrieved LinkedIn profile data!', 'success')
-            break
-          }
-        }
-        
-        addLog('Data format was unexpected. Trying again...', 'info')
-      }
-      
-      if (!profileData) {
-        throw new Error('Failed to retrieve profile data after multiple attempts')
-      }
-      
-      // Set the data in state
-      setLinkedinProfileData(profileData)
-      
-      // Step 3: Save to database
-      if (user) {
-        addLog("Saving LinkedIn data to Supabase...", 'info')
-        
-        const { error } = await supabase
-          .from('applicant_profiles')
-          .update({
-            linkedin_profile_raw: profileData,
-            linkedin_import_status: 'completed',
-            linkedin_snapshot_id: null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id)
-        
-        if (error) {
-          throw error
-        }
-        
-        setImportStatus('completed')
-        addLog("LinkedIn profile data stored successfully in database", 'success')
-        
-        // Hide debug console after successful completion
-        setTimeout(() => {
-          setShowDebugConsole(false)
-        }, 2000)
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error)
-      addLog(`Error: ${errorMsg}`, 'error')
-      console.error('LinkedIn API error:', error)
-      
-      // Update import status to failed in database
-      if (user) {
-        await supabase
-          .from('applicant_profiles')
-          .update({
-            linkedin_import_status: 'failed',
-            linkedin_snapshot_id: null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id)
-      }
-      
-      setImportStatus('failed')
-    } finally {
-      setLoadingProfile(false)
-      setFetchingLinkedIn(false)
-    }
+    // Redirect to progress page for the import
+    router.push('/applicant/profile/progress')
   }
   
   // After fetchProfileData function, add this function to handle entering edit mode
@@ -1304,15 +1156,10 @@ export default function ApplicantProfilePage() {
                       variant="default"
                       size="sm"
                       className="gap-1 whitespace-nowrap"
-                      onClick={fetchLinkedInData}
-                      disabled={fetchingLinkedIn}
+                      onClick={() => router.push('/applicant/profile/progress')}
                     >
-                      {fetchingLinkedIn ? (
-                        <LuLoader className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <LuLinkedin className="h-4 w-4" />
-                      )}
-                      {fetchingLinkedIn ? 'Importing...' : 'Import LinkedIn Data'}
+                      <LuLinkedin className="h-4 w-4" />
+                      Import LinkedIn Data
                     </Button>
                   )}
                   {importStatus === 'pending' && !linkedinProfileData && (
@@ -1320,10 +1167,10 @@ export default function ApplicantProfilePage() {
                       variant="default"
                       size="sm"
                       className="gap-1 whitespace-nowrap"
-                      onClick={() => setShowDebugConsole(true)}
+                      onClick={() => router.push('/applicant/profile/progress')}
                     >
                       <LuLoader className="h-4 w-4 animate-spin" />
-                      Import in Progress
+                      View Import Progress
                     </Button>
                   )}
                   {importStatus === 'failed' && !linkedinProfileData && (
@@ -1331,7 +1178,7 @@ export default function ApplicantProfilePage() {
                       variant="destructive"
                       size="sm"
                       className="gap-1 whitespace-nowrap"
-                      onClick={fetchLinkedInData}
+                      onClick={() => router.push('/applicant/profile/progress')}
                     >
                       <LuLinkedin className="h-4 w-4" />
                       Retry Import
