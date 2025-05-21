@@ -31,10 +31,11 @@ import {
   LuPlus,
   LuBadgeCheck,
   LuX,
-  LuSave
+  LuSave,
+  LuTerminal
 } from 'react-icons/lu'
 import { Textarea } from '@/components/ui/textarea'
-import { toast } from '@/components/ui/use-toast'
+import { useToast } from '@/components/ui/use-toast'
 
 // Experience component
 function ExperienceItem({ experience }: { experience: any }) {
@@ -279,24 +280,37 @@ function LinkedInPromptDialog({
 export default function ApplicantProfilePage() {
   const router = useRouter()
   const { user, userProfile, loading, supabase } = useAuth()
+  const { toast } = useToast()
   const [profile, setProfile] = useState<any>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
   const [linkedinProfileData, setLinkedinProfileData] = useState<any>(null)
   const [fetchingLinkedIn, setFetchingLinkedIn] = useState(false)
-  const [apiKey, setApiKey] = useState('fd1c528d-23db-4f4b-9dbc-53835c75e2b8') // Default API key
+  const [apiKey, setApiKey] = useState('7188c6d4-44e1-40d0-9309-d211fbaa4160') // Updated API key
   
   // For LinkedIn URL prompt
   const [showLinkedInPrompt, setShowLinkedInPrompt] = useState(false)
   const [linkedinUrl, setLinkedinUrl] = useState('')
   const [savingUrl, setSavingUrl] = useState(false)
   const [urlError, setUrlError] = useState('')
+  
+  // Debug console state
+  const [logs, setLogs] = useState<{timestamp: string, message: string, type: 'info' | 'error' | 'success'}[]>([])
+  const [showDebugConsole, setShowDebugConsole] = useState(false)
+  const [snapshotId, setSnapshotId] = useState<string | null>(null)
 
-  // Add a log entry - for development debugging only
-  const addLog = (message: string) => {
-    // We no longer show logs on UI but keep them in console for debugging
+  // Add a log entry - updated to display in debug console
+  const addLog = (message: string, type: 'info' | 'error' | 'success' = 'info') => {
+    const now = new Date()
+    const timestamp = now.toLocaleTimeString() + '.' + now.getMilliseconds().toString().padStart(3, '0')
+    setLogs(prev => [...prev, { timestamp, message, type }])
     console.log(`[Profile] ${message}`);
   };
   
+  // Clear logs
+  const clearLogs = () => {
+    setLogs([])
+  }
+
   // In the default export function, add these new state variables
   const [isEditMode, setIsEditMode] = useState(false)
   const [editData, setEditData] = useState<any>({
@@ -468,114 +482,129 @@ export default function ApplicantProfilePage() {
   };
   
   // Trigger LinkedIn API to fetch profile data
-  const fetchLinkedInData = () => {
+  const fetchLinkedInData = async () => {
     if (!profile?.linkedin_url) {
-      addLog("No LinkedIn URL found, showing prompt")
+      addLog("No LinkedIn URL found, showing prompt", 'error')
       setShowLinkedInPrompt(true);
       return;
     }
     
+    // Enable debug console while fetching
+    setShowDebugConsole(true);
     setFetchingLinkedIn(true);
-    setLoadingProfile(true); // Set loading state for entire operation
-    addLog("Starting LinkedIn data import process...")
+    setLoadingProfile(true);
     
-    // Mock data for demonstration - in a real app, this would call the LinkedIn API
-    setTimeout(() => {
-      addLog("LinkedIn API returned data")
-      // Sample LinkedIn data
-      const mockLinkedInData = {
-        name: "Yashwanth Krishna Pavushetty",
-        position: "Gen AI │ building text2story.",
-        about: "As a Generative AI Developer, I specialize in crafting innovative solutions that streamline workflows and enhance user experiences. My technical expertise includes developing AI agents, integrating various AI APIs such as OpenAI, ElevenLabs, and Llama, and utilizing Large Language Models (LLMs) to build intelligent applications.",
-        avatar: "https://media.licdn.com/dms/image/v2/D5603AQE_R1XowAlCLQ/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1722139379101?e=2147483647&v=beta&t=A-CmsvegAPWt0Hwwr9u_ImV1Rbb5RR-LMhP-BDxNJxo",
-        banner_image: "https://media.licdn.com/dms/image/v2/D5616AQHTRKPoFCTtVg/profile-displaybackgroundimage-shrink_200_800/profile-displaybackgroundimage-shrink_200_800/0/1719645431211?e=2147483647&v=beta&t=20IjV5kfUf7StGVBip7jv2aLXGp2p4LbLsKxLEg71tw",
-        location: "Hyderabad, Telangana, India",
-        experience: [
-          {
-            title: "Public Relations Officer",
-            company: "C-i2RE @ KITS Warangal",
-            start_date: "Nov 2023",
-            end_date: "Jun 2024",
-            duration: "8 months",
-            description: "Public Relations Officer and president of public relations and outreach club of student alliance body(SAIL)in a startup incubator called C-i2re. Managed Instagram page from zero, achieving 130K impressions and high engagement rates averaging 15k views per reel."
-          }
-        ],
-        education: [
-          {
-            title: "buildspace",
-            start_year: "2024",
-            end_year: "2024",
-            description: "Activities and Societies: working on a text-to-video app called text2story, transforming written prompts into engaging videos and generating stories based on user prompts.",
-            institute_logo_url: "https://media.licdn.com/dms/image/v2/C4D0BAQH4v0G7qtO5UQ/company-logo_100_100/company-logo_100_100/0/1668195915807/buildspaceso_logo?e=2147483647&v=beta&t=NOVWRgLOtOxfYae8_ZIwHrIrrztH9GLVBNnpmEe8gcU"
-          },
-          {
-            title: "Kakatiya Institute of Technology & Science",
-            degree: "Bachelor of Technology - BTech",
-            field: "Computer Science",
-            start_year: "2022",
-            end_year: "2026",
-            institute_logo_url: "https://media.licdn.com/dms/image/v2/C510BAQHeBoXaJ-XqXQ/company-logo_100_100/company-logo_100_100/0/1630585835539/kakatiya_institute_of_technology__science_yerragattu_hillocks_bheemaram_hasanparthy_warangal_logo?e=2147483647&v=beta&t=uhcf1MAbVpPIZTXom5ZbsFsWm6vqyN2QQyUgtiwuox8"
-          }
-        ],
-        projects: [
-          {
-            title: "Text 2 Story",
-            start_date: "Jun 2024",
-            description: "My journey started with Text2Story, a project that turns textbook lessons into fun, personalized AI-generated video stories to make learning more engaging for children."
-          },
-          {
-            title: "Symphony of the Stars- Nasa space apps challenge (2024 People's Choice Winner)",
-            start_date: "Aug 2024",
-            end_date: "Sep 2024",
-            description: "We created an AI-powered platform that brings the awe-inspiring discoveries of the James Webb Space Telescope (JWST) directly to users by transforming scientific data into captivating multimedia stories."
-          }
-        ],
-        certifications: [
-          {
-            title: "Winner - IBM Granite Generative AI Hackathon",
-            subtitle: "lablab.ai",
-            meta: "Issued Feb 2025 Credential ID cm9sxh96k0030dl0sg4ys7u02",
-            credential_url: "https://lablab.ai/u/@yashwanthkrishna/cm9sxh96k0030dl0sg4ys7u02"
-          },
-          {
-            title: "2024 People's Choice Winner - NASA Space Apps Challenge",
-            subtitle: "NASA - National Aeronautics and Space Administration",
-            meta: "Issued Oct 2024",
-            credential_url: "https://www.spaceappschallenge.org/nasa-space-apps-2024/find-a-team/teamone/?tab=details"
-          }
-        ],
-        skills: ["Generative AI", "LLM", "React", "Next.js", "Node.js", "TypeScript", "Python", "API Integration"]
-      };
+    // Clear previous logs
+    clearLogs();
+    addLog("Starting LinkedIn data import process...", 'info');
+    addLog(`Target URL: ${profile.linkedin_url}`, 'info');
+    
+    try {
+      // Step 1: Trigger the API
+      addLog('Triggering Brightdata API request...', 'info');
       
-      setLinkedinProfileData(mockLinkedInData);
-      addLog("LinkedIn data received and set to state")
+      const triggerResponse = await fetch('/api/linkedin/trigger', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: profile.linkedin_url,
+          apiKey: apiKey
+        })
+      });
       
-      // In a real app, store the data in Supabase
+      const triggerData = await triggerResponse.json();
+      
+      if (!triggerResponse.ok) {
+        throw new Error(triggerData.error || `API failed with status: ${triggerResponse.status}`);
+      }
+      
+      addLog('API request successful', 'success');
+      
+      if (!triggerData.snapshot_id) {
+        throw new Error('No snapshot ID returned from API');
+      }
+      
+      setSnapshotId(triggerData.snapshot_id);
+      addLog(`Snapshot ID received: ${triggerData.snapshot_id}`, 'success');
+      
+      // Step 2: Poll for results
+      let profileData = null;
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (!profileData && attempts < maxAttempts) {
+        attempts++;
+        addLog(`Fetching data attempt ${attempts}/${maxAttempts}...`, 'info');
+        
+        // Wait 5 seconds between attempts
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        
+        const snapshotResponse = await fetch(`/api/linkedin/snapshot?id=${triggerData.snapshot_id}&apiKey=${encodeURIComponent(apiKey)}`);
+        const snapshotData = await snapshotResponse.json();
+        
+        if (!snapshotResponse.ok) {
+          addLog(`Error fetching snapshot: ${snapshotData.error || snapshotResponse.statusText}`, 'error');
+          continue;
+        }
+        
+        // Check if still processing
+        if (snapshotData && snapshotData.status === 'running') {
+          addLog('Snapshot is still processing, waiting...', 'info');
+          continue;
+        }
+        
+        // Check if we have valid data
+        if (Array.isArray(snapshotData) && snapshotData.length > 0) {
+          // Check if we have a valid profile
+          if (snapshotData[0].name || snapshotData[0].id || snapshotData[0].linkedin_id) {
+            profileData = snapshotData[0];
+            addLog('Successfully retrieved LinkedIn profile data!', 'success');
+            break;
+          }
+        }
+        
+        addLog('Data format was unexpected. Trying again...', 'info');
+      }
+      
+      if (!profileData) {
+        throw new Error('Failed to retrieve profile data after multiple attempts');
+      }
+      
+      // Set the data in state
+      setLinkedinProfileData(profileData);
+      
+      // Step 3: Save to database
       if (user) {
-        addLog("Saving LinkedIn data to Supabase...")
-        supabase
+        addLog("Saving LinkedIn data to Supabase...", 'info');
+        
+        const { error } = await supabase
           .from('applicant_profiles')
           .update({
-            linkedin_profile_raw: mockLinkedInData
+            linkedin_profile_raw: profileData
           })
-          .eq('id', user.id)
-          .then(() => {
-            addLog("LinkedIn profile data stored successfully in database")
-            setLoadingProfile(false); // Only set loading to false after storage completes
-            setFetchingLinkedIn(false);
-          })
-          .then(undefined, (error: Error) => { // Fix for type error
-            addLog(`Error storing profile: ${error.message}`)
-            console.error('Error storing profile:', error);
-            setLoadingProfile(false); // Make sure to set loading to false even on error
-            setFetchingLinkedIn(false);
-          });
-      } else {
-        addLog("No user found, can't save to database")
-        setLoadingProfile(false); // Also handle case where user is not defined
-        setFetchingLinkedIn(false);
+          .eq('id', user.id);
+        
+        if (error) {
+          throw error;
+        }
+        
+        addLog("LinkedIn profile data stored successfully in database", 'success');
+        
+        // Hide debug console after successful completion
+        setTimeout(() => {
+          setShowDebugConsole(false);
+        }, 2000);
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      addLog(`Error: ${errorMsg}`, 'error');
+      console.error('LinkedIn API error:', error);
+    } finally {
+      setLoadingProfile(false);
+      setFetchingLinkedIn(false);
     }
-    }, 2000);
   };
   
   // After fetchProfileData function, add this function to handle entering edit mode
@@ -817,6 +846,62 @@ export default function ApplicantProfilePage() {
         onSave={saveLinkedInUrl}
         onSkip={skipLinkedIn}
       />
+      
+      {/* Add the debug console when active */}
+      {showDebugConsole && (
+        <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div className="px-4 py-3 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <LuTerminal className="h-5 w-5" />
+                LinkedIn Data Import
+              </h3>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowDebugConsole(false)}
+                className="h-8 w-8 p-0"
+              >
+                <span className="sr-only">Close</span>
+                ✕
+              </Button>
+            </div>
+            
+            <div className="flex-grow overflow-auto p-0 border-y">
+              <div className="font-mono text-xs p-4 bg-black text-green-400 h-full overflow-auto">
+                {logs.length === 0 ? (
+                  <div className="text-gray-500 italic">No logs yet.</div>
+                ) : (
+                  logs.map((log, index) => (
+                    <div key={index} className={`mb-1 ${
+                      log.type === 'error' ? 'text-red-400' :
+                      log.type === 'success' ? 'text-green-400' :
+                      'text-blue-400'
+                    }`}>
+                      <span className="text-gray-400">[{log.timestamp}]</span> {log.message}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            
+            <div className="px-4 py-3 flex justify-between">
+              {snapshotId && (
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-semibold">Snapshot ID:</span> {snapshotId}
+                </div>
+              )}
+              <Button
+                variant="secondary"
+                onClick={() => setShowDebugConsole(false)}
+                size="sm"
+              >
+                Hide Console
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {loadingProfile ? (
         <div className="pt-20 min-h-screen flex items-center justify-center">
