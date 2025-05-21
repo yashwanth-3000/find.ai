@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting to Findr.ai...</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #333;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      max-width: 90%;
+      width: 500px;
+    }
+    h1 {
+      margin-bottom: 1.5rem;
+      font-size: 24px;
+    }
+    p {
+      margin-bottom: 1.5rem;
+      color: #666;
+    }
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border-left-color: #09f;
+      margin: 0 auto 1.5rem;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h1>Redirecting to Findr.ai</h1>
+    <p>You're being redirected to our secure production environment...</p>
+    <p id="countdown">Redirecting in 2 seconds</p>
+  </div>
+  
+  <script>
+    (function() {
+      // Function to extract query parameters and hash from URL
+      function getUrlParams() {
+        const queryParams = window.location.search || '';
+        const hashParams = window.location.hash || '';
+        return { queryParams, hashParams };
+      }
+      
+      // Function to update countdown
+      function updateCountdown(seconds) {
+        const countdownEl = document.getElementById('countdown');
+        countdownEl.textContent = `Redirecting in ${seconds} second${seconds !== 1 ? 's' : ''}`;
+      }
+      
+      // Redirect to production
+      function redirectToProduction() {
+        try {
+          // Get current URL components
+          const { queryParams, hashParams } = getUrlParams();
+          
+          // Construct production URL
+          const productionUrl = 'https://findr-ai.vercel.app';
+          let redirectPath = '/auth/token-handler'; // Send directly to token handler
+          
+          // Create full URL
+          const finalUrl = productionUrl + redirectPath + queryParams + hashParams;
+          
+          // Log and redirect
+          console.log('Redirecting to:', finalUrl);
+          window.location.replace(finalUrl);
+        } catch (err) {
+          console.error('Redirect error:', err);
+          // Fallback to simple redirect
+          window.location.replace('https://findr-ai.vercel.app');
+        }
+      }
+      
+      // Set up countdown
+      let secondsLeft = 2;
+      const countdownInterval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft <= 0) {
+          clearInterval(countdownInterval);
+          redirectToProduction();
+        } else {
+          updateCountdown(secondsLeft);
+        }
+      }, 1000);
+      
+      // Also set a manual timeout as backup
+      setTimeout(redirectToProduction, 2500);
+    })();
+  </script>
+</body>
+</html> 

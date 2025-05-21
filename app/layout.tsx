@@ -80,6 +80,30 @@ export default function RootLayout({
             __html: THEME_COLOR_SCRIPT,
           }}
         />
+        {/* Add OAuth URL fix script - CRITICAL for correct authentication */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                // Fix Supabase OAuth redirect URLs when in production to prevent localhost redirects
+                if (typeof window !== "undefined") {
+                  // This is a global variable that Supabase will check for redirects
+                  window.SUPABASE_AUTH_SITE_URL = "https://findr-ai.vercel.app";
+                  
+                  // For history-based fixes
+                  if (window.location.hostname === "localhost" && 
+                      (window.location.hash.includes("access_token=") || 
+                       window.location.search.includes("access_token="))) {
+                    console.log("🚨 Detected auth tokens on localhost, forcing redirect");
+                    const prodUrl = "https://findr-ai.vercel.app";
+                    window.location.replace(prodUrl + window.location.pathname + 
+                                          window.location.search + window.location.hash);
+                  }
+                }
+              })();
+            `
+          }}
+        />
         <style dangerouslySetInnerHTML={{
           __html: `
             .apple-style {

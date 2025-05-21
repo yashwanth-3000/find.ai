@@ -5,11 +5,48 @@ import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase-browser'
 import { LuLoader, LuRefreshCw } from 'react-icons/lu'
 
+// Immediate redirect script to catch tokens on localhost
+const REDIRECT_SCRIPT = `
+  (function() {
+    // Only run in browser
+    if (typeof window !== "undefined") {
+      // Check if we're on localhost with auth tokens
+      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      const hasToken = window.location.hash.includes("access_token=") || 
+                       window.location.search.includes("access_token=") ||
+                       window.location.hash.includes("refresh_token=");
+      
+      if (isLocalhost && hasToken) {
+        console.log("⚠️ CRITICAL: Detected auth tokens on localhost token-handler, redirecting to production");
+        const prodUrl = "https://findr-ai.vercel.app";
+        const fullUrl = prodUrl + "/auth/token-handler" + window.location.search + window.location.hash;
+        // Replace current URL with production URL
+        window.location.replace(fullUrl);
+      }
+    }
+  })();
+`;
+
 export default function TokenHandler() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(true)
   const [debugInfo, setDebugInfo] = useState<string | null>(null)
+
+  // Add the script execution directly in the component
+  useEffect(() => {
+    // Create and execute the script
+    const script = document.createElement('script');
+    script.textContent = REDIRECT_SCRIPT;
+    document.head.appendChild(script);
+    
+    // Clean up
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
 
   const handleRetry = () => {
     if (typeof window !== 'undefined') {
