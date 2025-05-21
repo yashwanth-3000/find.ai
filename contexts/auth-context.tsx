@@ -281,8 +281,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         throw new Error('Cannot sign in outside of browser context')
       }
 
-      // Get exact current origin for reliable redirects using our helper
-      const origin = getSiteUrl()
+      // PRODUCTION FIX: Never use localhost as the callback URL in production
+      // Always use the production URL regardless of current window location
+      // This prevents redirect problems with Google OAuth
+      const origin = process.env.NODE_ENV === 'production' 
+        ? (process.env.NEXT_PUBLIC_SITE_URL || 'https://findr-ai.vercel.app')
+        : window.location.origin;
+      
       const callbackUrl = `${origin}/auth/callback`
       
       console.log('Starting Google sign-in with callback URL:', callbackUrl)

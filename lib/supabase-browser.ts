@@ -32,12 +32,21 @@ export function createBrowserClient() {
     console.error('Missing Supabase credentials for browser client')
   }
   
+  // In production, we need to override the site URL
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://findr-ai.vercel.app';
+    console.log(`Production environment, site URL set to: ${siteUrl}`);
+    
+    // Add a global redirect override to force auth redirects to use the production URL
+    (window as any).SUPABASE_AUTH_SITE_URL = siteUrl;
+  }
+  
   return createClient<Database>(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       // Use implicit flow instead of PKCE to avoid code verifier issues
-      flowType: 'implicit',
+      flowType: 'implicit' as const,
       detectSessionInUrl: true,
       storageKey: 'findr-auth-token'
     }

@@ -165,22 +165,34 @@ export default function TokenHandler() {
   }
   
   useEffect(() => {
-    // Check if we're on localhost with auth tokens and redirect to production
-    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-      const hash = window.location.hash
-      const search = window.location.search
+    // Force a redirect if we're on localhost in production
+    const forcedRedirectCheck = () => {
+      if (typeof window === 'undefined') return false;
       
-      if (hash.includes('access_token=') || search.includes('access_token=')) {
-        console.log('Detected auth tokens on localhost, redirecting to production')
-        const prodUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://findr-ai.vercel.app'
-        const params = hash || search
-        window.location.href = `${prodUrl}/auth/token-handler${params}`
-        return
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const isProd = process.env.NODE_ENV === 'production';
+      const hasToken = window.location.hash.includes('access_token=') || window.location.search.includes('access_token=');
+      
+      if (isProd && isLocalhost && hasToken) {
+        console.log('CRITICAL: Detected localhost URL in production with auth tokens. Forcing redirect to production URL.');
+        const prodUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://findr-ai.vercel.app';
+        const path = window.location.pathname;
+        const params = window.location.hash || window.location.search;
+        const fullRedirectUrl = `${prodUrl}${path}${params}`;
+        
+        console.log('Redirecting to:', fullRedirectUrl);
+        window.location.href = fullRedirectUrl;
+        return true;
       }
-    }
+      
+      return false;
+    };
     
-    handleTokenFromFragment()
-  }, [router])
+    // Only proceed if we haven't forced a redirect
+    if (!forcedRedirectCheck()) {
+      handleTokenFromFragment();
+    }
+  }, [router]);
   
   return (
     <div className="min-h-screen flex flex-col items-center justify-center">
