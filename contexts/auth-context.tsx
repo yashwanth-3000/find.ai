@@ -7,7 +7,7 @@ import {
   useState,
   ReactNode
 } from 'react'
-import { createBrowserClient } from '@/lib/supabase-browser'
+import { createBrowserClient, getSiteUrl } from '@/lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import { UserProfile, UserRole } from '@/lib/supabase-types'
 import { Session, SupabaseClient, User } from '@supabase/supabase-js'
@@ -281,9 +281,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         throw new Error('Cannot sign in outside of browser context')
       }
 
-      // Get exact current origin for reliable redirects
-      // Use environment variable for deployed site URL as fallback
-      const origin = window.location.origin || process.env.NEXT_PUBLIC_SITE_URL || 'https://findr-ai.vercel.app'
+      // Get exact current origin for reliable redirects using our helper
+      const origin = getSiteUrl()
       const callbackUrl = `${origin}/auth/callback`
       
       console.log('Starting Google sign-in with callback URL:', callbackUrl)

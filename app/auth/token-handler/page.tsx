@@ -165,6 +165,20 @@ export default function TokenHandler() {
   }
   
   useEffect(() => {
+    // Check if we're on localhost with auth tokens and redirect to production
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      const hash = window.location.hash
+      const search = window.location.search
+      
+      if (hash.includes('access_token=') || search.includes('access_token=')) {
+        console.log('Detected auth tokens on localhost, redirecting to production')
+        const prodUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://findr-ai.vercel.app'
+        const params = hash || search
+        window.location.href = `${prodUrl}/auth/token-handler${params}`
+        return
+      }
+    }
+    
     handleTokenFromFragment()
   }, [router])
   

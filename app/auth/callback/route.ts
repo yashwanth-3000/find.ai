@@ -16,6 +16,21 @@ export async function GET(req: NextRequest) {
     hasHash: req.url.includes('#'),
     searchParams: Object.fromEntries(requestUrl.searchParams.entries())
   })
+  
+  // If the host is localhost but we're in production, redirect to the production domain
+  const isLocalhost = requestUrl.hostname === 'localhost' || requestUrl.hostname === '127.0.0.1'
+  const isProd = process.env.NODE_ENV === 'production'
+  const prodUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://findr-ai.vercel.app'
+  
+  if (isProd && isLocalhost) {
+    console.log('Detected localhost in production, redirecting to:', prodUrl)
+    // Preserve all query parameters and hash
+    const targetUrl = new URL(requestUrl.pathname, prodUrl)
+    requestUrl.searchParams.forEach((value, key) => {
+      targetUrl.searchParams.set(key, value)
+    })
+    return NextResponse.redirect(targetUrl)
+  }
 
   // Handle explicit errors from OAuth provider
   if (error) {
