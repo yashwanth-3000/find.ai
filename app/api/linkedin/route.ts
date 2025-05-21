@@ -23,7 +23,21 @@ export async function POST(request: Request) {
           'Authorization': `Bearer ${BRIGHTDATA_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify([{ url: linkedinUrl }]),
+        body: JSON.stringify({
+          input: [{ url: linkedinUrl }],
+          custom_output_fields: [
+            "id", "name", "city", "country_code", "position", "about", "posts",
+            "current_company", "experience", "url", "people_also_viewed",
+            "educations_details", "education", "recommendations_count", "avatar",
+            "courses", "languages", "certifications", "recommendations",
+            "volunteer_experience", "followers", "connections", "current_company_company_id",
+            "current_company_name", "publications", "patents", "projects",
+            "organizations", "location", "input_url", "linkedin_id",
+            "linkedin_num_id", "banner_image", "honors_and_awards", "default_avatar",
+            "memorialized_account", "bio_links", "timestamp", "input", "error",
+            "error_code", "warning", "warning_code"
+          ]
+        }),
       }
     );
     
