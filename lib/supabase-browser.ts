@@ -16,8 +16,8 @@ export function createBrowserClient() {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      // Use PKCE flow for more secure and reliable auth
-      flowType: 'pkce',
+      // Use implicit flow as it's more reliable for our current setup
+      flowType: 'implicit',
       detectSessionInUrl: true,
       storageKey: 'findr-auth-token'
     }

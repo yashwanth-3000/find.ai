@@ -303,15 +303,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Store timestamp to help debug auth flow
       localStorage.setItem('auth_flow_start', new Date().toISOString())
       
-      // Using a fresh client for this operation to avoid any state conflicts
-      const freshClient = createBrowserClient()
-      
-      const { data, error } = await freshClient.auth.signInWithOAuth({
+      // Use the existing supabase client instance to maintain auth state
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: callbackUrl,
           queryParams: {
-            // These params help ensure we get a refresh token
             access_type: 'offline',
             prompt: 'consent',
           }
