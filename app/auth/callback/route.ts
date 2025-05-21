@@ -3,19 +3,32 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Helper function to ensure we have the correct site URL
 function getSiteUrl(request: NextRequest): string {
+  // Production URL - hardcoded value
+  const productionUrl = 'https://findr-ai.vercel.app';
+  
   // First try to get from environment variables
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL;
   if (envUrl) return envUrl;
   
-  // Fall back to the request host
-  const host = request.headers.get('host') || '';
-  const proto = request.headers.get('x-forwarded-proto') || 'http';
-  
-  // If we detect localhost in production, use the production URL
-  if (process.env.NODE_ENV === 'production' && 
-      (host.includes('localhost') || host.includes('127.0.0.1'))) {
-    return 'https://findr-ai.vercel.app';
+  // Check if we're in production environment
+  if (process.env.NODE_ENV === 'production') {
+    return productionUrl;
   }
+  
+  // Check if we're on localhost
+  const host = request.headers.get('host') || '';
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    // If we're on localhost with tokens, we should use production URL
+    const url = new URL(request.url);
+    if (url.hash.includes('access_token=') || 
+        url.search.includes('access_token=') ||
+        url.search.includes('code=')) {
+      return productionUrl;
+    }
+  }
+  
+  // Get protocol from headers or default to https
+  const proto = request.headers.get('x-forwarded-proto') || 'https';
   
   // Otherwise use the current host
   return `${proto}://${host}`;

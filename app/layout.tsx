@@ -87,17 +87,55 @@ export default function RootLayout({
               (function() {
                 // Fix Supabase OAuth redirect URLs when in production to prevent localhost redirects
                 if (typeof window !== "undefined") {
-                  // This is a global variable that Supabase will check for redirects
+                  // Force window to use the production URL for all auth redirects
                   window.SUPABASE_AUTH_SITE_URL = "https://findr-ai.vercel.app";
                   
-                  // For history-based fixes
+                  // Set a global value that Supabase can detect
+                  window.SUPABASE_REDIRECT_BASE_URL = "https://findr-ai.vercel.app";
+                  
+                  // Extra guard for window.location accesses
+                  const originalGetProp = Object.getOwnPropertyDescriptor(window, 'location');
+                  if (originalGetProp && originalGetProp.get) {
+                    const originalGet = originalGetProp.get;
+                    Object.defineProperty(window, 'location', {
+                      get: function() {
+                        const result = originalGet.call(this);
+                        
+                        // If we detect a redirect to localhost with auth tokens, fix it
+                        if (result.hostname === "localhost" && 
+                            (result.hash.includes("access_token=") || 
+                             result.search.includes("access_token="))) {
+                             
+                          console.log("🚨 Location access intercepted with auth tokens on localhost");
+                          
+                          // Only run this once to avoid redirect loops
+                          if (!window._hasRedirectedTokens) {
+                            window._hasRedirectedTokens = true;
+                            setTimeout(() => {
+                              const prodUrl = "https://findr-ai.vercel.app";
+                              window.location.replace(prodUrl + result.pathname + 
+                                                    result.search + result.hash);
+                            }, 0);
+                          }
+                        }
+                        return result;
+                      },
+                      set: originalGetProp.set,
+                      configurable: true
+                    });
+                  }
+                  
+                  // Direct check for tokens in URL
                   if (window.location.hostname === "localhost" && 
                       (window.location.hash.includes("access_token=") || 
                        window.location.search.includes("access_token="))) {
-                    console.log("🚨 Detected auth tokens on localhost, forcing redirect");
-                    const prodUrl = "https://findr-ai.vercel.app";
-                    window.location.replace(prodUrl + window.location.pathname + 
+                    if (!window._hasRedirectedTokens) {
+                      window._hasRedirectedTokens = true;
+                      console.log("🚨 Detected auth tokens on localhost, forcing redirect");
+                      const prodUrl = "https://findr-ai.vercel.app";
+                      window.location.replace(prodUrl + window.location.pathname + 
                                           window.location.search + window.location.hash);
+                    }
                   }
                 }
               })();

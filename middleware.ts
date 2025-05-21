@@ -75,8 +75,20 @@ export async function middleware(request: NextRequest) {
 // Match both auth routes and all paths for checking localhost auth tokens
 export const config = {
   matcher: [
+    // Auth routes
     '/signin',
     '/login',
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(svg|jpg|png|ico|css|js)).*)'
+    '/auth/:path*',
+    '/auth-redirect/:path*',
+    
+    // Main pages that may need auth checks
+    '/',
+    '/role-selector',
+    '/dashboard',
+    '/profile',
+    '/applicant/:path*',
+    '/company/:path*',
+    
+    // Exclude all static files and API routes by not including them
   ],
 } 
