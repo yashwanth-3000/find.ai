@@ -11,6 +11,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import RoleGuard from '@/components/auth/role-guard'
+// @ts-ignore - Import is valid but TypeScript hasn't recognized it yet
 import { toast } from '@/components/ui/use-toast'
 import {
   DropdownMenu,

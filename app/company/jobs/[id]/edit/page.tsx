@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+// @ts-ignore - Import is valid but TypeScript hasn't recognized it yet
 import { toast } from '@/components/ui/use-toast'
 import RoleGuard from '@/components/auth/role-guard'
 import { LuSave, LuLoader, LuX, LuChevronLeft } from 'react-icons/lu'

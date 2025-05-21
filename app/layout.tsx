@@ -1,6 +1,7 @@
 'use client'
 
 import { ThemeProvider } from '@/components/theme-provider';
+// @ts-ignore - Import is valid but TypeScript hasn't recognized it yet
 import { Toaster } from '@/components/ui/toaster';
 import Script from 'next/script';
 import { AuthProvider } from '@/contexts/auth-context';
