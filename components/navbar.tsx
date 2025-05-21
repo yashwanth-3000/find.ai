@@ -122,11 +122,6 @@ export function Navbar() {
     )
   }
   
-  // Add profile link for authenticated users
-  if (user) {
-    navLinks.push({ name: "Profile", path: "/profile" })
-  }
-
   // Auth links for non-authenticated users
   const authLinks = !user ? [
     { name: "Sign In", path: "/signin" }

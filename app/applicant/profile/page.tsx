@@ -203,16 +203,21 @@ function LinkedInPromptDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Your LinkedIn Profile</DialogTitle>
-          <DialogDescription>
-            Adding your LinkedIn profile will help us retrieve your professional information and enhance your profile.
+          <DialogTitle className="text-center text-xl">Connect Your LinkedIn Profile</DialogTitle>
+          <DialogDescription className="text-center">
+            Add your LinkedIn profile to automatically import your experience, education, skills, and more.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+        <div className="space-y-6 py-4">
+          <div className="flex justify-center mb-4">
+            <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center">
+              <LuLinkedin className="h-8 w-8 text-blue-600" />
+            </div>
+          </div>
           <div className="space-y-2">
-            <Label htmlFor="linkedin-url">LinkedIn Profile URL</Label>
+            <Label htmlFor="linkedin-url" className="text-center block">LinkedIn Profile URL</Label>
             <Input
               id="linkedin-url"
               placeholder="https://linkedin.com/in/yourprofile"
@@ -224,21 +229,23 @@ function LinkedInPromptDialog({
             />
             {urlError && <p className="text-sm text-red-500">{urlError}</p>}
           </div>
+          <p className="text-sm text-muted-foreground text-center">
+            This will help us create a complete profile for you automatically. Your profile information will help match you with the right job opportunities.
+          </p>
         </div>
-        <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={onSkip}
-          >
-            Skip for now
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+          <Button type="button" variant="outline" onClick={onSkip} className="sm:flex-1">
+            Skip for Now
           </Button>
-          <Button 
-            onClick={onSave}
-            disabled={savingUrl}
-            className="gap-2"
-          >
-            {savingUrl ? <LuLoader className="h-4 w-4 animate-spin" /> : <LuPlus className="h-4 w-4" />}
-            Add LinkedIn URL
+          <Button type="button" onClick={onSave} disabled={savingUrl} className="sm:flex-1">
+            {savingUrl ? (
+              <>
+                <LuLoader className="mr-2 h-4 w-4 animate-spin" />
+                Connecting...
+              </>
+            ) : (
+              <>Connect LinkedIn</>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -328,7 +335,9 @@ export default function ApplicantProfilePage() {
           // If record doesn't exist, we might need to create one
           if (error.code === 'PGRST116') {
             addLog("No profile found, may need to create one")
-      }
+            // Automatically show LinkedIn import prompt
+            setShowLinkedInPrompt(true)
+          }
         } else {
           addLog("Profile data fetched successfully")
           setProfile(data)
@@ -342,8 +351,24 @@ export default function ApplicantProfilePage() {
           else if (!data?.linkedin_url) {
             addLog("No LinkedIn URL found, showing prompt")
             setShowLinkedInPrompt(true)
-      } else {
+          } else {
             addLog("LinkedIn URL found, but no profile data")
+            // If URL exists but no data, show a prompt to import
+            toast({
+              title: "Import LinkedIn Data",
+              description: "You've added your LinkedIn URL but haven't imported your data yet. Import now to complete your profile.",
+              action: (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={fetchLinkedInData}
+                  disabled={fetchingLinkedIn}
+                >
+                  {fetchingLinkedIn ? 'Importing...' : 'Import Now'}
+                </Button>
+              ),
+              duration: 10000,
+            })
           }
       }
       } catch (err) {
@@ -792,240 +817,284 @@ export default function ApplicantProfilePage() {
         onSave={saveLinkedInUrl}
         onSkip={skipLinkedIn}
       />
-          
-      {/* Banner and Profile Header */}
-      <div className="w-full h-[200px] bg-gradient-to-r from-blue-600 to-indigo-800 relative">
-        {displayData.banner && (
-          <img 
-            src={displayData.banner} 
-            alt="Profile Banner"
-                  className="w-full h-full object-cover"
-                />
-        )}
-        
-        {/* Dark gradient overlay for banner */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-              </div>
       
-      <Container className="relative">
-        {/* Profile Avatar - positioned to overlap banner */}
-        <div className="absolute -top-16 left-8 md:left-12">
-          <Avatar className="h-32 w-32 border-4 border-white shadow-md">
-            {displayData.avatar ? (
-              <AvatarImage src={displayData.avatar} alt={displayData.name} className="object-cover" />
-            ) : (
-              <AvatarFallback className="bg-primary/10">
-                <LuUser className="h-12 w-12 text-primary" />
-              </AvatarFallback>
-            )}
-          </Avatar>
-              </div>
-              
-        {/* Main profile content */}
-        <div className="pt-20 pb-12">
-          {/* Profile header info */}
-          <div className="mb-8 flex flex-col md:flex-row gap-6 items-start">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold">{displayData.name}</h1>
-              <p className="text-xl text-muted-foreground">{displayData.position}</p>
-              
-              {displayData.location && (
-                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-2">
-                    <LuMapPin className="h-4 w-4" />
-                  {displayData.location}
-                </p>
-              )}
-              
-              <div className="mt-3 flex flex-wrap gap-2">
-                {profile?.github_url && (
-                  <a 
-                    href={profile.github_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <LuGithub className="h-4 w-4" />
-                    GitHub
-                  </a>
-                )}
-                
-                {profile?.linkedin_url && (
-                  <a 
-                    href={profile.linkedin_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <LuLinkedin className="h-4 w-4" />
-                    LinkedIn
-                  </a>
-                )}
-                
-                {profile?.website_url && (
-                  <a 
-                    href={profile.website_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <LuExternalLink className="h-4 w-4" />
-                    Portfolio
-                  </a>
-                )}
-              </div>
-              </div>
-              
-            <div className="flex flex-col gap-2">
-              {!isEditMode ? (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="gap-1 whitespace-nowrap"
-                  onClick={handleEditMode}
-                >
-                  <LuPenLine className="h-4 w-4" /> 
-                  Edit Profile
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="gap-1 whitespace-nowrap"
-                    onClick={handleCancelEdit}
-                  >
-                    <LuX className="h-4 w-4" /> 
-                    Cancel
-                  </Button>
-                  <Button 
-                    variant="default" 
-                    size="sm" 
-                    className="gap-1 whitespace-nowrap"
-                    onClick={handleSaveProfile}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? (
-                      <><LuLoader className="h-4 w-4 animate-spin" /> Saving...</>
-                    ) : (
-                      <><LuSave className="h-4 w-4" /> Save Profile</>
-                    )}
-                  </Button>
+      {loadingProfile ? (
+        <div className="pt-20 min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-6 bg-primary/10 rounded-full">
+              <LuLoader className="h-8 w-8 text-primary animate-spin" />
+            </div>
+            <h2 className="text-xl font-medium mb-2">Loading profile...</h2>
+            <p className="text-muted-foreground">Please wait while we fetch your information</p>
+          </div>
+        </div>
+      ) : !profile || (!linkedinProfileData && !profile.about && !profile.skills?.length) ? (
+        // Empty profile state
+        <div className="pt-20 min-h-screen">
+          <Container className="py-12">
+            <Card className="max-w-2xl mx-auto">
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                  <LuUser className="h-8 w-8 text-blue-600" />
                 </div>
-              )}
-              
-              {!profile?.linkedin_url ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 whitespace-nowrap"
+                <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
+                <CardDescription>Your profile is incomplete. Connect your LinkedIn account to automatically import your professional information.</CardDescription>
+              </CardHeader>
+              <CardContent className="text-center space-y-4">
+                <p>A complete profile helps you get matched with the best job opportunities. Import your data from LinkedIn to get started quickly.</p>
+              </CardContent>
+              <CardFooter className="flex justify-center gap-3">
+                <Button 
+                  className="gap-2"
                   onClick={() => setShowLinkedInPrompt(true)}
                 >
                   <LuLinkedin className="h-4 w-4" />
-                  Add LinkedIn
+                  Connect LinkedIn
                 </Button>
-              ) : !linkedinProfileData && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 whitespace-nowrap"
-                  onClick={fetchLinkedInData}
-                  disabled={fetchingLinkedIn}
-                >
-                  {fetchingLinkedIn ? (
-                    <LuLoader className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <LuLinkedin className="h-4 w-4" />
+              </CardFooter>
+            </Card>
+          </Container>
+        </div>
+      ) : (
+      <>
+        {/* Banner and Profile Header */}
+        <div className="w-full h-[200px] bg-gradient-to-r from-blue-600 to-indigo-800 relative">
+          {displayData.banner && (
+            <img 
+              src={displayData.banner} 
+              alt="Profile Banner"
+                    className="w-full h-full object-cover"
+                  />
+          )}
+          
+          {/* Dark gradient overlay for banner */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                </div>
+        
+        <Container className="relative">
+          {/* Profile Avatar - positioned to overlap banner */}
+          <div className="absolute -top-16 left-8 md:left-12">
+            <Avatar className="h-32 w-32 border-4 border-white shadow-md">
+              {displayData.avatar ? (
+                <AvatarImage src={displayData.avatar} alt={displayData.name} className="object-cover" />
+              ) : (
+                <AvatarFallback className="bg-primary/10">
+                  <LuUser className="h-12 w-12 text-primary" />
+                </AvatarFallback>
+              )}
+            </Avatar>
+                </div>
+                
+          {/* Main profile content */}
+          <div className="pt-20 pb-12">
+            {/* Profile header info */}
+            <div className="mb-8 flex flex-col md:flex-row gap-6 items-start">
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold">{displayData.name}</h1>
+                <p className="text-xl text-muted-foreground">{displayData.position}</p>
+                
+                {displayData.location && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1 mt-2">
+                      <LuMapPin className="h-4 w-4" />
+                    {displayData.location}
+                  </p>
+                )}
+                
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {profile?.github_url && (
+                    <a 
+                      href={profile.github_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <LuGithub className="h-4 w-4" />
+                      GitHub
+                    </a>
                   )}
-                  {fetchingLinkedIn ? 'Fetching...' : 'Import LinkedIn Data'}
-                </Button>
-              )}
+                  
+                  {profile?.linkedin_url && (
+                    <a 
+                      href={profile.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <LuLinkedin className="h-4 w-4" />
+                      LinkedIn
+                    </a>
+                  )}
+                  
+                  {profile?.website_url && (
+                    <a 
+                      href={profile.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <LuExternalLink className="h-4 w-4" />
+                      Portfolio
+                    </a>
+                  )}
+                </div>
+                </div>
+                
+              <div className="flex flex-col gap-2">
+                {!isEditMode ? (
+                  <>
+                    {/* Show Edit Profile button only if profile data exists */}
+                    {(profile?.linkedin_profile_raw || profile?.about) && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-1 whitespace-nowrap"
+                        onClick={handleEditMode}
+                      >
+                        <LuPenLine className="h-4 w-4" /> 
+                        Edit Profile
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1 whitespace-nowrap"
+                      onClick={handleCancelEdit}
+                    >
+                      <LuX className="h-4 w-4" /> 
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="gap-1 whitespace-nowrap"
+                      onClick={handleSaveProfile}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <><LuLoader className="h-4 w-4 animate-spin" /> Saving...</>
+                      ) : (
+                        <><LuSave className="h-4 w-4" /> Save Profile</>
+                      )}
+                    </Button>
+                  </div>
+                )}
+                
+                {!profile?.linkedin_url ? (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="gap-1 whitespace-nowrap"
+                    onClick={() => setShowLinkedInPrompt(true)}
+                  >
+                    <LuLinkedin className="h-4 w-4" />
+                    Connect LinkedIn
+                  </Button>
+                ) : !linkedinProfileData && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="gap-1 whitespace-nowrap"
+                    onClick={fetchLinkedInData}
+                    disabled={fetchingLinkedIn}
+                  >
+                    {fetchingLinkedIn ? (
+                      <LuLoader className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <LuLinkedin className="h-4 w-4" />
+                    )}
+                    {fetchingLinkedIn ? 'Importing...' : 'Import LinkedIn Data'}
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-          
-          {/* About section */}
-          {isEditMode ? (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle className="text-xl">About</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={editData.about || ''}
-                  onChange={(e) => setEditData({...editData, about: e.target.value})}
-                  placeholder="Tell us about yourself, your experience, and what you're looking for"
-                  rows={6}
-                  className="resize-none"
-                />
-              </CardContent>
-            </Card>
-          ) : displayData.about ? (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle className="text-xl">About</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap text-sm">{displayData.about}</p>
-              </CardContent>
-            </Card>
-          ) : null}
-          
-          {/* Content sections in 2-column layout for larger screens */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Main column - Experience, Education */}
-            <div className="md:col-span-2 space-y-8">
-              {/* Experience section */}
-              {displayData.experience.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2">
-                      <LuBriefcase className="h-5 w-5" />
-                      Experience
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {displayData.experience.map((exp: any, i: number) => (
-                        <ExperienceItem key={i} experience={exp} />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Education section */}
-              {displayData.education.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2">
-                      <LuGraduationCap className="h-5 w-5" />
-                      Education
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {displayData.education.map((edu: any, i: number) => (
-                        <EducationItem key={i} education={edu} />
-                          ))}
-                        </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Projects section */}
-              {isEditMode ? (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2">
-                      <LuCode className="h-5 w-5" />
-                      Projects
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <Label htmlFor="projects">Enter your projects as JSON</Label>
-                      <Textarea
-                        id="projects"
-                        placeholder={`[
+            
+            {/* About section */}
+            {isEditMode ? (
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle className="text-xl">About</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={editData.about || ''}
+                    onChange={(e) => setEditData({...editData, about: e.target.value})}
+                    placeholder="Tell us about yourself, your experience, and what you're looking for"
+                    rows={6}
+                    className="resize-none"
+                  />
+                </CardContent>
+              </Card>
+            ) : displayData.about ? (
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle className="text-xl">About</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="whitespace-pre-wrap text-sm">{displayData.about}</p>
+                </CardContent>
+              </Card>
+            ) : null}
+            
+            {/* Content sections in 2-column layout for larger screens */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Main column - Experience, Education */}
+              <div className="md:col-span-2 space-y-8">
+                {/* Experience section */}
+                {displayData.experience.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2">
+                        <LuBriefcase className="h-5 w-5" />
+                        Experience
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {displayData.experience.map((exp: any, i: number) => (
+                          <ExperienceItem key={i} experience={exp} />
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* Education section */}
+                {displayData.education.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2">
+                        <LuGraduationCap className="h-5 w-5" />
+                        Education
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {displayData.education.map((edu: any, i: number) => (
+                          <EducationItem key={i} education={edu} />
+                            ))}
+                          </div>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* Projects section */}
+                {isEditMode ? (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2">
+                        <LuCode className="h-5 w-5" />
+                        Projects
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <Label htmlFor="projects">Enter your projects as JSON</Label>
+                        <Textarea
+                          id="projects"
+                          placeholder={`[
   {
     "title": "Project Name",
     "description": "Project description goes here",
@@ -1034,143 +1103,145 @@ export default function ApplicantProfilePage() {
     "url": "https://project-url.com"
   }
 ]`}
-                        value={typeof editData.projects === 'object' 
-                          ? JSON.stringify(editData.projects, null, 2) 
-                          : editData.projects || ''}
-                        onChange={(e) => setEditData({...editData, projects: e.target.value})}
-                        rows={10}
-                        className="font-mono text-sm"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Add your projects as a JSON array with title, description, dates, and URL
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : displayData.projects.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2">
-                      <LuCode className="h-5 w-5" />
-                      Projects
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {displayData.projects.map((project: any, i: number) => (
-                        <ProjectItem key={i} project={project} />
-                    ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-              
-            {/* Right sidebar - Skills, Certifications */}
-            <div className="space-y-8">
-              {/* Skills section */}
-              {isEditMode ? (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <LuBriefcase className="h-5 w-5" />
-                      Skills
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Add a skill"
-                          value={newSkill}
-                          onChange={(e) => setNewSkill(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
+                          value={typeof editData.projects === 'object' 
+                            ? JSON.stringify(editData.projects, null, 2) 
+                            : editData.projects || ''}
+                          onChange={(e) => setEditData({...editData, projects: e.target.value})}
+                          rows={10}
+                          className="font-mono text-sm"
                         />
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={handleAddSkill}
-                          className="shrink-0"
-                        >
-                          Add
-                        </Button>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Add your projects as a JSON array with title, description, dates, and URL
+                        </p>
                       </div>
-                      
-                      <div className="flex flex-wrap gap-2">
-                        {editData.skills.map((skill: string, index: number) => (
-                          <div 
-                            key={index} 
-                            className="bg-primary/10 text-primary text-xs px-2.5 py-1 rounded-full flex items-center gap-1"
+                    </CardContent>
+                  </Card>
+                ) : displayData.projects.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2">
+                        <LuCode className="h-5 w-5" />
+                        Projects
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {displayData.projects.map((project: any, i: number) => (
+                          <ProjectItem key={i} project={project} />
+                      ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+                
+              {/* Right sidebar - Skills, Certifications */}
+              <div className="space-y-8">
+                {/* Skills section */}
+                {isEditMode ? (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <LuBriefcase className="h-5 w-5" />
+                        Skills
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Add a skill"
+                            value={newSkill}
+                            onChange={(e) => setNewSkill(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
+                          />
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={handleAddSkill}
+                            className="shrink-0"
                           >
-                            {skill}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSkill(skill)}
-                              className="h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-primary/20"
+                            Add
+                          </Button>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {editData.skills.map((skill: string, index: number) => (
+                            <div 
+                              key={index} 
+                              className="bg-primary/10 text-primary text-xs px-2.5 py-1 rounded-full flex items-center gap-1"
                             >
-                              <LuX className="h-3 w-3" />
-                              <span className="sr-only">Remove {skill}</span>
-                            </button>
-                          </div>
-                        ))}
+                              {skill}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSkill(skill)}
+                                className="h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-primary/20"
+                              >
+                                <LuX className="h-3 w-3" />
+                                <span className="sr-only">Remove {skill}</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : displayData.skills.length > 0 ? (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <LuBriefcase className="h-5 w-5" />
-                      Skills
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <SkillsSection skills={displayData.skills} />
-                  </CardContent>
-                </Card>
-              ) : null}
-              
-              {/* Certifications section */}
-              {displayData.certifications.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <LuAward className="h-5 w-5" />
-                      Certifications
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {displayData.certifications.map((cert: any, i: number) => (
-                        <CertificationItem key={i} certification={cert} />
-                        ))}
-                      </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Placeholder for empty profile sections */}
-              {!displayData.skills.length && !displayData.certifications.length && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Complete Your Profile</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">Add more information to showcase your talents and experience.</p>
-                    <Button asChild variant="outline" size="sm" className="gap-2">
-                      <a href="/applicant/edit">
-                        <LuPenLine className="h-4 w-4" />
-                        Edit Profile
-                      </a>
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+                    </CardContent>
+                  </Card>
+                ) : displayData.skills.length > 0 ? (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <LuBriefcase className="h-5 w-5" />
+                        Skills
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <SkillsSection skills={displayData.skills} />
+                    </CardContent>
+                  </Card>
+                ) : null}
+                
+                {/* Certifications section */}
+                {displayData.certifications.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <LuAward className="h-5 w-5" />
+                        Certifications
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {displayData.certifications.map((cert: any, i: number) => (
+                          <CertificationItem key={i} certification={cert} />
+                          ))}
+                        </div>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* Placeholder for empty profile sections */}
+                {!displayData.skills.length && !displayData.certifications.length && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Complete Your Profile</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground mb-4">Add more information to showcase your talents and experience.</p>
+                      <Button asChild variant="outline" size="sm" className="gap-2">
+                        <a href="/applicant/edit">
+                          <LuPenLine className="h-4 w-4" />
+                          Edit Profile
+                        </a>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </Container>
-    </>
-  )
+        </Container>
+      </>
+    )}
+  </>
+)
 } 

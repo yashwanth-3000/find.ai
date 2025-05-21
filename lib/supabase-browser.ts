@@ -16,8 +16,8 @@ export function createBrowserClient() {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      // Use implicit flow instead of PKCE to avoid code verifier issues
-      flowType: 'implicit',
+      // Use PKCE flow for more secure and reliable auth
+      flowType: 'pkce',
       detectSessionInUrl: true,
       storageKey: 'findr-auth-token'
     }
@@ -38,6 +38,8 @@ export function getBrowserClient() {
 export async function testBrowserConnection() {
   try {
     const supabase = getBrowserClient()
+    if (!supabase) return false
+    
     const { data, error } = await supabase.rpc('check_db_connection')
     
     if (error) {

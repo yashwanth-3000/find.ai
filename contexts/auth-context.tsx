@@ -5,7 +5,9 @@ import {
   useContext,
   useEffect,
   useState,
-  ReactNode
+  ReactNode,
+  useRef,
+  useMemo
 } from 'react'
 import { createBrowserClient } from '@/lib/supabase-browser'
 import { useRouter } from 'next/navigation'
@@ -48,13 +50,19 @@ interface AuthProviderProps {
 
 // Create the AuthProvider component
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [supabase] = useState(() => createBrowserClient())
+  // Use a memo to create the Supabase client only once
+  const supabase = useMemo(() => createBrowserClient(), [])
   const [user, setUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
+  
+  // Use refs to track initialization and prevent multiple fetches
+  const initializeRef = useRef(false)
+  const profileFetchRef = useRef(false)
+  
   const router = useRouter()
 
   // Computed properties for role-based checks
@@ -388,6 +396,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Initialize authentication
   const initializeAuth = async () => {
+    // Skip if already initializing to prevent duplicate calls
+    if (initializeRef.current) return
+    initializeRef.current = true
+    
     try {
       console.log('Initializing auth...')
       setLoading(true)
@@ -411,33 +423,44 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(initialSession)
         setUser(initialSession.user)
         
-        try {
-          // Fetch the user profile
-          const profile = await fetchUserProfile(initialSession.user.id)
-          
-          if (profile) {
-            console.log('Profile found during init:', profile)
-            setUserProfile(profile)
-          } else {
-            console.warn('No profile found during init despite having user')
+        // Only fetch profile if we haven't already
+        if (!profileFetchRef.current) {
+          try {
+            profileFetchRef.current = true
+            // Fetch the user profile
+            const profile = await fetchUserProfile(initialSession.user.id)
+            
+            if (profile) {
+              console.log('Profile found during init:', profile)
+              setUserProfile(profile)
+            } else {
+              console.warn('No profile found during init despite having user')
+            }
+          } catch (profileError) {
+            console.error('Error fetching profile during init:', profileError)
+          } finally {
+            profileFetchRef.current = false
           }
-        } catch (profileError) {
-          console.error('Error fetching profile during init:', profileError)
         }
       } else {
         console.log('No session found during initialization')
       }
       
-      // Always set up the auth state change listener
-      setupAuthListener()
+      // Set up the auth state change listener
+      const unsubscribe = setupAuthListener()
       
       setIsInitialized(true)
       setLoading(false)
+      
+      // Return cleanup function
+      return unsubscribe
       
     } catch (err) {
       console.error('Exception during auth initialization:', err)
       setError('Failed to initialize authentication')
       setLoading(false)
+    } finally {
+      initializeRef.current = false
     }
   }
   
@@ -450,17 +473,47 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       async (event, currentSession) => {
         console.log('Auth state change event:', event)
         
+        // Skip unnecessary processing for TOKEN_REFRESHED events
+        // to avoid excessive profile fetching
+        if (event === 'TOKEN_REFRESHED' && user && userProfile) {
+          // Just update the session object, but don't refetch everything
+          if (currentSession) {
+            setSession(currentSession)
+          }
+          return
+        }
+        
         if (currentSession) {
           // Set the session and user
           console.log('New session established for user:', currentSession.user.id)
           setSession(currentSession)
           setUser(currentSession.user)
           
-          // Fetch the user profile
-          const profile = await fetchUserProfile(currentSession.user.id)
-          if (profile) {
-            console.log('Profile updated after auth change:', profile)
-            setUserProfile(profile)
+          // Avoid fetching profile if we haven't changed users
+          const userChanged = user?.id !== currentSession.user.id
+          
+          if (userChanged || !userProfile) {
+            // Fetch the user profile
+            const profile = await fetchUserProfile(currentSession.user.id)
+            if (profile) {
+              console.log('Profile updated after auth change:', profile)
+              setUserProfile(profile)
+              
+              // For sign-in events, handle role-based redirects
+              if (event === 'SIGNED_IN') {
+                // If user doesn't have a role yet, redirect to role selection
+                if (!profile.role) {
+                  console.log('User has no role, redirecting to role selection')
+                  router.push('/role-selector')
+                }
+              }
+            }
+          }
+          
+          // Only refresh page for important auth events
+          if (['SIGNED_IN', 'SIGNED_OUT', 'USER_UPDATED'].includes(event)) {
+            // Use a gentle navigation update instead of a hard refresh
+            setTimeout(() => router.refresh(), 300)
           }
         } else {
           // Clear the user data
@@ -479,74 +532,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }
 
-  // Initialize: Auth state listener
+  // Initialize authentication once
   useEffect(() => {
-    const setupAuthListener = () => {
-      // Set up auth state change listener
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-        console.log('Auth state changed:', event, newSession?.user?.id);
-        
-        if (event === 'SIGNED_IN' && newSession) {
-          console.log('User signed in:', newSession.user.id);
-          setSession(newSession);
-          setUser(newSession.user);
-          
-          // Fetch the user profile on sign in
-          const profile = await fetchUserProfile(newSession.user.id);
-          if (profile) {
-            console.log('Profile found after sign in:', profile);
-            setUserProfile(profile);
-            
-            // If user doesn't have a role yet, redirect to role selection
-            if (!profile.role) {
-              console.log('User has no role, redirecting to role selection');
-              router.push('/role-selector');
-            } else {
-              console.log('User has role:', profile.role, 'redirecting to home');
-              router.push('/');
-            }
-          } else {
-            console.warn('No profile found after sign in, redirecting to role selection');
-            router.push('/role-selector');
-          }
+    if (isInitialized) return
+    
+    console.log('Running auth initialization effect')
+    const initialize = async () => {
+      const cleanup = await initializeAuth()
+      return cleanup
+    }
+    
+    const cleanupPromise = initialize()
+    
+    // Return cleanup function for useEffect
+    return () => {
+      // Handle promise-based cleanup function
+      cleanupPromise.then(cleanup => {
+        if (typeof cleanup === 'function') {
+          cleanup()
         }
-        
-        if (event === 'SIGNED_OUT') {
-          console.log('User signed out, clearing state');
-          setSession(null);
-          setUser(null);
-          setUserProfile(null);
-        }
-        
-        // For role updates or other profile changes
-        if (event === 'USER_UPDATED' && newSession) {
-          console.log('User updated, refreshing profile');
-          const profile = await fetchUserProfile(newSession.user.id);
-          if (profile) {
-            console.log('Updated profile:', profile);
-            setUserProfile(profile);
-          }
-        }
-        
-        router.refresh();
-      });
+      })
+    }
+  }, [isInitialized]) // Only run once when component mounts
 
-      return subscription;
-    };
-
-    // Initialize auth and setup listener
-    initializeAuth().then(() => {
-      const subscription = setupAuthListener();
-      
-      // Clean up subscription on unmount
-      return () => {
-        subscription.unsubscribe();
-      };
-    });
-  }, [supabase, router]);
-
-  // Combine all values to provide through context
-  const value: AuthContextType = {
+  // Provide the context value
+  const contextValue = {
     supabase,
     user,
     userProfile,
@@ -560,7 +570,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     updateUserRole,
     isApplicant,
     isCompany
-  };
+  }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}; 
+  return (
+    <AuthContext.Provider value={contextValue}>
+      {children}
+    </AuthContext.Provider>
+  )
+} 
