@@ -1,66 +1,54 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 
 // Define routes that should redirect to home if already authenticated
 const AUTH_ROUTES = [
-  '/signin',
-  '/login'
+  '/signin'
 ]
 
 export async function middleware(request: NextRequest) {
   try {
-    const requestUrl = new URL(request.url)
-    const pathName = requestUrl.pathname
-    
-    // First check if we have a localhost auth token situation which needs immediate redirect
-    const isLocalhost = requestUrl.hostname === 'localhost' || requestUrl.hostname === '127.0.0.1'
-    
-    // Check for auth tokens in URL
-    const hasAuthToken = 
-      requestUrl.hash.includes('access_token=') || 
-      requestUrl.search.includes('access_token=') ||
-      requestUrl.hash.includes('refresh_token=') ||
-      requestUrl.hash.includes('id_token=') ||
-      requestUrl.search.includes('code=') ||
-      (requestUrl.hash && requestUrl.hash.length > 20) // Likely a token
-
-    if (isLocalhost && hasAuthToken) {
-      console.log('Middleware: Detected auth tokens on localhost, redirecting to auth-redirect.html')
-      
-      // Redirect to our special handler page that will redirect to production
-      const redirectUrl = new URL('/auth-redirect.html', requestUrl.origin)
-      
-      // Copy search params
-      requestUrl.searchParams.forEach((value, key) => {
-        redirectUrl.searchParams.set(key, value)
-      })
-      
-      // Preserve hash fragments (contains tokens)
-      redirectUrl.hash = requestUrl.hash
-      
-      return NextResponse.redirect(redirectUrl)
-    }
-    
-    // Create supabase server client for normal auth checks
+    // Create supabase server client
     const supabase = createServerClient()
     
     // Get session from Supabase
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    // Debug logs to help trace the issue
+    console.log('Middleware checking path:', request.nextUrl.pathname)
+    console.log('Session present:', !!session)
+    if (sessionError) {
+      console.error('Error getting session:', sessionError)
+    }
+
+    const requestUrl = new URL(request.url)
+    const pathName = requestUrl.pathname
     
     // Important: Check for auth redirect flag in the URL
+    // This is a special flag that indicates the user is being redirected from the auth flow
     // When present, we should not redirect, allowing cookies to properly set
     const isAuthRedirect = requestUrl.searchParams.get('auth_redirect') === 'true'
     
     // If we're in the middle of auth flow, don't interrupt
     if (isAuthRedirect) {
+      console.log('Auth flow in progress, skipping middleware redirects')
       return NextResponse.next()
     }
     
-    // If user is authenticated and trying to access auth routes (signin/login), 
+    // If user is authenticated and trying to access auth routes (signin), 
     // redirect to home page
     const isAuthRoute = AUTH_ROUTES.some(route => pathName === route || pathName === `${route}/`)
     if (isAuthRoute && session) {
+      console.log('Auth route access with active session, redirecting to home page')
+      
+      // Redirect to home page instead of dashboard
       return NextResponse.redirect(new URL('/', requestUrl.origin))
+    }
+    
+    // Always allow access to signin page when not authenticated
+    if (isAuthRoute && !session) {
+      return NextResponse.next()
     }
     
     // Allow the request to continue for all routes
@@ -68,27 +56,14 @@ export async function middleware(request: NextRequest) {
   } catch (error) {
     console.error('Middleware error:', error)
     // In case of error, allow the request to continue
+    // This prevents middleware errors from blocking the application
     return NextResponse.next()
   }
 }
 
-// Match both auth routes and all paths for checking localhost auth tokens
+// Updated matcher to only catch signin pages
 export const config = {
   matcher: [
-    // Auth routes
     '/signin',
-    '/login',
-    '/auth/:path*',
-    '/auth-redirect/:path*',
-    
-    // Main pages that may need auth checks
-    '/',
-    '/role-selector',
-    '/dashboard',
-    '/profile',
-    '/applicant/:path*',
-    '/company/:path*',
-    
-    // Exclude all static files and API routes by not including them
   ],
 } 

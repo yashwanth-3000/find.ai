@@ -7,7 +7,7 @@ import {
   useState,
   ReactNode
 } from 'react'
-import { createBrowserClient, getSiteUrl } from '@/lib/supabase-browser'
+import { createBrowserClient } from '@/lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import { UserProfile, UserRole } from '@/lib/supabase-types'
 import { Session, SupabaseClient, User } from '@supabase/supabase-js'
@@ -281,13 +281,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         throw new Error('Cannot sign in outside of browser context')
       }
 
-      // PRODUCTION FIX: Never use localhost as the callback URL in production
-      // Always use the production URL regardless of current window location
-      // This prevents redirect problems with Google OAuth
-      const origin = process.env.NODE_ENV === 'production' 
-        ? (process.env.NEXT_PUBLIC_SITE_URL || 'https://findr-ai.vercel.app')
-        : window.location.origin;
-      
+      // Get exact current origin for reliable redirects
+      const origin = window.location.origin
       const callbackUrl = `${origin}/auth/callback`
       
       console.log('Starting Google sign-in with callback URL:', callbackUrl)

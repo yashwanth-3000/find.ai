@@ -34,7 +34,6 @@ import {
   LuSave
 } from 'react-icons/lu'
 import { Textarea } from '@/components/ui/textarea'
-// @ts-ignore - Import is valid but TypeScript hasn't recognized it yet
 import { toast } from '@/components/ui/use-toast'
 
 // Experience component
